@@ -18,6 +18,7 @@ list_t syn_conftable;
 struct
 {
     char *channel;
+    int debug;
 } syn_config;
 
 void _modinit(module_t *m)
@@ -32,6 +33,7 @@ void _modinit(module_t *m)
     hook_add_hook("server_eob", syn_join_channel);
 
     add_dupstr_conf_item("CHANNEL", &syn_conftable, &syn_config.channel);
+    add_uint_conf_item("DEBUG", &syn_conftable, &syn_config.debug, 0, 15);
 
     syn = service_add("syn", syn_handler, &syn_cmdtree, &syn_conftable);
 }
@@ -85,6 +87,27 @@ static void syn_join_channel(void *unused)
 {
     if (syn_config.channel && me.connected)
         join(syn_config.channel, syn->nick);
+}
+
+void syn_debug(int debuglevel, char *fmt, ...)
+{
+    if (debuglevel > syn_config.debug)
+        return;
+
+    va_list ap;
+    char buf[BUFSIZE];
+
+    if (!syn_config.channel)
+        return;
+
+    if (!channel_find(syn_config.channel))
+        return;
+
+    va_start(ap, fmt);
+    vsnprintf(buf, BUFSIZE, fmt, ap);
+    va_end(ap);
+
+    msg(syn->nick, syn_config.channel, "%s", buf);
 }
 
 void syn_report(char *fmt, ...)

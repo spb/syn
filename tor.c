@@ -19,7 +19,7 @@ static void load_tor_list();
 
 mowgli_patricia_t *torlist;
 
-const int kline_duration = 24 * 3600;
+int kline_duration = 24 * 3600;
 char *kline_reason = "Tor access to freenode is hidden service only. Mail kline@freenode.net with questions.";
 
 void _modinit(module_t *m)
@@ -37,6 +37,9 @@ void _modinit(module_t *m)
     event_add("update_tor_list", load_tor_list, NULL, 120);
 
     load_tor_list();
+
+    add_dupstr_conf_item("TOR_KLINE_REASON", syn_conftable, &kline_reason);
+    add_uint_conf_item("TOR_KLINE_DURATION", syn_conftable, &kline_duration, 1, (unsigned int)-1);
 
     MOWGLI_PATRICIA_FOREACH(u, &state, userlist)
     {
@@ -65,7 +68,7 @@ static void tor_newuser(void *v)
         return;
 
     // IP was listed in the tor list.
-    syn_report("tor: K:lining tor node %s (user %s)", u->ip, u->nick);
+    syn_report("K:lining tor node %s (user %s)", u->ip, u->nick);
     kline_sts("*", "*", u->ip, kline_duration, kline_reason);
 }
 

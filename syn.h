@@ -3,14 +3,18 @@
 
 list_t *syn_cmdtree;
 list_t *syn_helptree;
+list_t *syn_conftable;
 
 void (*syn_report)(char *, ...);
+void (*syn_debug)(int, char *, ...);
 
 inline void use_syn_main_symbols(module_t *m)
 {
     MODULE_USE_SYMBOL(syn_cmdtree, "syn/main", "syn_cmdtree");
     MODULE_USE_SYMBOL(syn_helptree, "syn/main", "syn_helptree");
+    MODULE_USE_SYMBOL(syn_conftable, "syn/main", "syn_conftable");
     MODULE_USE_SYMBOL(syn_report, "syn/main", "syn_report");
+    MODULE_USE_SYMBOL(syn_debug, "syn/main", "syn_debug");
 }
 
 
