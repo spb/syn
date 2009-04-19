@@ -8,11 +8,17 @@ DECLARE_MODULE_V1
 );
 
 static void syn_handler(sourceinfo_t *si, int parc, char *parv[]);
+static void syn_join_channel(void *unused);
 
 service_t *syn;
 list_t syn_cmdtree;
 list_t syn_helptree;
 list_t syn_conftable;
+
+struct
+{
+    char *channel;
+} syn_config;
 
 void _modinit(module_t *m)
 {
@@ -20,6 +26,11 @@ void _modinit(module_t *m)
 
     help_addentry(&syn_helptree, "HELP", "help/help", NULL);
     help_addentry(&syn_helptree, "LIST", "help/syn/list", NULL);
+
+    hook_add_event("config_ready");
+    hook_add_hook("config_ready", syn_join_channel);
+
+    add_dupstr_conf_item("CHANNEL", &syn_conftable, &syn_config.channel);
 
     syn = service_add("syn", syn_handler, &syn_cmdtree, &syn_conftable);
 }
@@ -66,3 +77,26 @@ static void syn_handler(sourceinfo_t *si, int parc, char *parv[])
     command_exec_split(si->service, si, cmd, text, &syn_cmdtree);
 }
 
+static void syn_join_channel(void *unused)
+{
+    if (syn_config.channel)
+        join(syn_config.channel, syn->nick);
+}
+
+void syn_report(char *fmt, ...)
+{
+    va_list ap;
+    char buf[BUFSIZE];
+
+    if (!syn_config.channel)
+        return;
+
+    if (!channel_find(syn_config.channel))
+        return;
+
+    va_start(ap, fmt);
+    vsnprintf(buf, BUFSIZE, fmt, ap);
+    va_end(ap);
+
+    msg(syn->nick, syn_config.channel, "%s", buf);
+}

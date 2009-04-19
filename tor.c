@@ -1,5 +1,7 @@
 #include "atheme.h"
 
+#include "syn.h"
+
 DECLARE_MODULE_V1
 (
         "syn/tor", false, _modinit, _moddeinit,
@@ -15,9 +17,6 @@ command_t syn_checktor = { "CHECKTOR", N_("Checks for tor nodes on a given IP.")
 
 static void load_tor_list();
 
-list_t *syn_cmdtree;
-list_t *syn_helptree;
-
 mowgli_patricia_t *torlist;
 
 const int kline_duration = 24 * 3600;
@@ -28,8 +27,7 @@ void _modinit(module_t *m)
     user_t *u;
     mowgli_patricia_iteration_state_t state;
 
-    MODULE_USE_SYMBOL(syn_cmdtree, "syn/main", "syn_cmdtree");
-    MODULE_USE_SYMBOL(syn_helptree, "syn/main", "syn_helptree");
+    use_syn_main_symbols(m);
 
     command_add(&syn_checktor, syn_cmdtree);
 
@@ -67,7 +65,7 @@ static void tor_newuser(void *v)
         return;
 
     // IP was listed in the tor list.
-    snoop("tor: K:lining tor node %s (user %s)", u->ip, u->nick);
+    syn_report("tor: K:lining tor node %s (user %s)", u->ip, u->nick);
     kline_sts("*", "*", u->ip, kline_duration, kline_reason);
 }
 

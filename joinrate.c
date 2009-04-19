@@ -1,5 +1,7 @@
 #include "atheme.h"
 
+#include "syn.h"
+
 DECLARE_MODULE_V1
 (
         "syn/joinrate", false, _modinit, _moddeinit,
@@ -13,9 +15,6 @@ static void update_rate_settings(void *v);
 static void syn_cmd_setrate(sourceinfo_t *si, int parc, char **parv);
 
 command_t syn_setrate = { "SETRATE", N_("Sets the join-rate monitoring thresholds"), "syn:general", 2, syn_cmd_setrate };
-
-list_t *syn_cmdtree;
-list_t *syn_helptree;
 
 int rate;
 int burst;
@@ -33,8 +32,7 @@ static void free_channelentry(const char *, void *data, void *);
 
 void _modinit(module_t *m)
 {
-    MODULE_USE_SYMBOL(syn_cmdtree, "syn/main", "syn_cmdtree");
-    MODULE_USE_SYMBOL(syn_helptree, "syn/main", "syn_helptree");
+    use_syn_main_symbols(m);
 
     command_add(&syn_setrate, syn_cmdtree);
 
@@ -80,7 +78,7 @@ static void syn_ratecheck(void *v)
             CURRTIME - ce->last_warn_time > warn_time)
     {
         ce->last_warn_time = CURRTIME;
-        snoop("Join rate in %s exceeds warning limit", cu->chan->name);
+        syn_report("Join rate in %s exceeds warning limit", cu->chan->name);
     }
 }
 
