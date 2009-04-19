@@ -67,6 +67,10 @@ static void syn_ratecheck(void *v)
     hook_channel_joinpart_t *data = v;
     chanuser_t *cu = data->cu;
 
+    // Don't warn about burst joins.
+    if (me.bursting)
+        return;
+
     channelentry *ce = mowgli_patricia_retrieve(channellist, cu->chan->name);
     if (!ce)
     {

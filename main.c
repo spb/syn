@@ -29,6 +29,7 @@ void _modinit(module_t *m)
 
     hook_add_event("config_ready");
     hook_add_hook("config_ready", syn_join_channel);
+    hook_add_hook("server_eob", syn_join_channel);
 
     add_dupstr_conf_item("CHANNEL", &syn_conftable, &syn_config.channel);
 
@@ -41,6 +42,9 @@ void _moddeinit()
 
     help_delentry(&syn_helptree, "HELP");
     help_delentry(&syn_helptree, "LIST");
+
+    hook_del_hook("config_ready", syn_join_channel);
+    hook_del_hook("server_eob", syn_join_channel);
 
     service_delete(syn);
 }
@@ -79,7 +83,7 @@ static void syn_handler(sourceinfo_t *si, int parc, char *parv[])
 
 static void syn_join_channel(void *unused)
 {
-    if (syn_config.channel)
+    if (syn_config.channel && me.connected)
         join(syn_config.channel, syn->nick);
 }
 
