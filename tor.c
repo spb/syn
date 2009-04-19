@@ -85,11 +85,19 @@ static void load_tor_list()
         return;
     }
 
-
     while (fgets(line, BUFSIZE, f))
     {
         strip(line);
         mowgli_patricia_add(torlist, line, (void*)1);
+    }
+    fclose(f);
+
+    // List might have new entries. Check them.
+    user_t *u;
+    mowgli_patricia_iteration_state_t state;
+    MOWGLI_PATRICIA_FOREACH(u, &state, userlist)
+    {
+        tor_newuser(u);
     }
 }
 
