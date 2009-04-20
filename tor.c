@@ -28,6 +28,7 @@ void _modinit(module_t *m)
     mowgli_patricia_iteration_state_t state;
 
     use_syn_main_symbols(m);
+    use_syn_kline_symbols(m);
 
     command_add(&syn_checktor, syn_cmdtree);
 
@@ -69,7 +70,7 @@ static void tor_newuser(void *v)
 
     // IP was listed in the tor list.
     syn_report("K:lining tor node %s (user %s)", u->ip, u->nick);
-    kline_sts("*", "*", u->ip, kline_duration, kline_reason);
+    syn_kline(u->ip, kline_duration, kline_reason);
 }
 
 static void load_tor_list()

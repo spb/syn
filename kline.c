@@ -102,7 +102,7 @@ static void expire_klines(void *unused)
     }
 }
 
-kline_t* _syn_find_kline(user_t *u)
+kline_t* _syn_find_kline(const char *user, const char *host)
 {
     node_t *n;
     kline_t *k;
@@ -110,11 +110,40 @@ kline_t* _syn_find_kline(user_t *u)
     LIST_FOREACH(n, ircd_klines.head)
     {
         k = (kline_t*) n->data;
-        if (0 == match(k->user, u->user) &&
-            0 == match(k->host, u->host))
+        if ((NULL == user || 0 == match(k->user, user)) &&
+            0 == match(k->host, host))
         {
             return k;
         }
     }
     return NULL;
 }
+
+void _syn_kline(const char *host, int duration, const char *reason)
+{
+    if (_syn_find_kline("*", host))
+        return;
+
+    kline_t *k = BlockHeapAlloc(ircd_kline_heap);
+    k->duration = duration;
+    k->settime = CURRTIME;
+    k->expires = CURRTIME + duration;
+    k->user = sstrdup("*");
+    k->host = sstrdup(host);
+    k->reason = sstrdup(reason);
+
+    char *p;
+    if (NULL != (p = strchr(k->reason, '|')))
+    {
+        *p = '\0';
+    }
+
+    node_t *n = node_create();
+    node_add(k, n, &ircd_klines);
+
+    kline_sts("*", "*", (char*)host, duration, (char*)reason);
+
+    syn_debug(1, "Added K:line %s@%s (%s)", k->user, k->host, k->reason);
+}
+
+

@@ -17,5 +17,14 @@ inline void use_syn_main_symbols(module_t *m)
     MODULE_USE_SYMBOL(syn_debug, "syn/main", "syn_debug");
 }
 
+kline_t* (*syn_find_kline)(const char *, const char *);
+void (*syn_kline)(const char *, const char *);
+
+inline void use_syn_kline_symbols(module_t *m)
+{
+    MODULE_USE_SYMBOL(syn_find_kline, "syn/kline", "_syn_find_kline");
+    MODULE_USE_SYMBOL(syn_kline, "syn/kline", "_syn_kline");
+}
+
 
 #endif
