@@ -1,6 +1,7 @@
 #ifndef syn_h
 #define syn_h
 
+service_t *syn;
 list_t *syn_cmdtree;
 list_t *syn_helptree;
 list_t *syn_conftable;
@@ -15,6 +16,7 @@ inline void use_syn_main_symbols(module_t *m)
     MODULE_USE_SYMBOL(syn_conftable, "syn/main", "syn_conftable");
     MODULE_USE_SYMBOL(syn_report, "syn/main", "syn_report");
     MODULE_USE_SYMBOL(syn_debug, "syn/main", "syn_debug");
+    MODULE_USE_SYMBOL(syn, "syn/main", "syn");
 }
 
 kline_t* (*syn_find_kline)(const char *, const char *);
