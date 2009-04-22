@@ -45,6 +45,9 @@ void _moddeinit()
     help_delentry(&syn_helptree, "HELP");
     help_delentry(&syn_helptree, "LIST");
 
+    del_conf_item("CHANNEL", &syn_conftable);
+    del_conf_item("DEBUG", &syn_conftable);
+
     hook_del_hook("config_ready", syn_join_channel);
     hook_del_hook("server_eob", syn_join_channel);
 

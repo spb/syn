@@ -20,7 +20,7 @@ static void load_tor_list();
 mowgli_patricia_t *torlist;
 
 int kline_duration = 24 * 3600;
-char *kline_reason = "Tor access to freenode is hidden service only. Mail kline@freenode.net with questions.";
+char *kline_reason;
 
 void _modinit(module_t *m)
 {
@@ -39,6 +39,8 @@ void _modinit(module_t *m)
 
     load_tor_list();
 
+    kline_reason = sstrdup("Tor access to freenode is hidden service only. Mail kline@freenode.net with questions.");
+
     add_dupstr_conf_item("TOR_KLINE_REASON", syn_conftable, &kline_reason);
     add_uint_conf_item("TOR_KLINE_DURATION", syn_conftable, &kline_duration, 1, (unsigned int)-1);
 
@@ -51,8 +53,14 @@ void _modinit(module_t *m)
 void _moddeinit()
 {
     mowgli_patricia_destroy(torlist, NULL, NULL);
+
+    del_conf_item("TOR_KLINE_DURATION", syn_conftable);
+    del_conf_item("TOR_KLINE_REASON", syn_conftable);
+
     command_delete(&syn_checktor, syn_cmdtree);
+
     hook_del_hook("user_add", tor_newuser);
+
     event_delete(load_tor_list, NULL);
 }
 
