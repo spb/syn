@@ -66,9 +66,31 @@ static void gateway_newuser(void *v)
 
         if (k)
         {
-            syn_report("Killing user [%s]; hex ident matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
+            syn_report("Killing user %s; hex ident matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
             kill_user(syn->me, u, "Your reported IP [%s] is banned: %s", identhost, k->reason);
             return;
         }
+    }
+
+    char *gecos = alloca(strlen(u->gecos));
+    char *p = strchr(gecos, ' ');
+    if (p != NULL)
+        *p = '\0';
+
+    p = strchr(gecos, '/');
+    if (p != NULL)
+        *p++ = '\0';
+
+    if (k = syn_find_kline(NULL, gecos))
+    {
+        syn_report("Killing user %s; realname host matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
+        kill_user(syn->me, u, "Your reported hostname [%s] is banned: %s", gecos, k->reason);
+        return;
+    }
+    else if (k = syn_find_kline(NULL, p))
+    {
+        syn_report("Killing user %s; realname host matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
+        kill_user(syn->me, u, "Your reported hostname [%s] is banned: %s", p, k->reason);
+        return;
     }
 }
