@@ -72,7 +72,8 @@ static void gateway_newuser(void *v)
         }
     }
 
-    char *gecos = alloca(strlen(u->gecos));
+    char gecos[GECOSLEN];
+    strncpy(gecos, u->gecos, GECOSLEN);
     char *p = strchr(gecos, ' ');
     if (p != NULL)
         *p = '\0';
