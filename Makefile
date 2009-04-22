@@ -11,7 +11,7 @@ default: $(MODULES)
 clean:
 	rm -f $(MODULES)
 
-%.so: %.c
+%.so: %.c syn.h
 	gcc -O1 -ggdb3 -fPIC $(ATHEME_CFLAGS) -shared -o$@ $<
 
 .PHONY: install
