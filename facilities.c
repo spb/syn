@@ -279,6 +279,8 @@ void facility_newuser(void *v)
     int blocked = 0, throttled = 0, blacklisted = 0;
     char *blockmessage = NULL, *throttlemessage = NULL;
     facility_cloak_type cloak = facility_cloak_none;
+    facility_t *blocking_facility = NULL, *throttling_facility = NULL;
+    char *blocking_regex = NULL;
 
     MOWGLI_DICTIONARY_FOREACH(f, &state, facilities)
     {
@@ -287,7 +289,10 @@ void facility_newuser(void *v)
             syn_debug(2, "User %s matches facility %s", u->nick, f->hostpart);
 
             if (f->blocked > 0)
+            {
                 blocked = 1;
+                blocking_facility = f;
+            }
             if (f->blocked < 0)
                 blocked = 0;
 
@@ -304,6 +309,7 @@ void facility_newuser(void *v)
                 if (f->throttle_latest > (f->throttle[1] * f->throttle[0]) + CURRTIME)
                 {
                     throttled = 1;
+                    throttling_facility = f;
                     throttlemessage = f->throttlemessage;
                 }
             }
@@ -324,6 +330,8 @@ void facility_newuser(void *v)
             if (regex_match(bl->re, nuh))
             {
                 syn_debug(1, "User %s blacklisted in %s (%s)", u->nick, f->hostpart, bl->regex);
+                blocking_facility = f;
+                blocking_regex = bl->regex;
                 blacklisted = 1;
                 break;
             }
@@ -335,14 +343,26 @@ void facility_newuser(void *v)
 
     if (throttled)
     {
+        syn_report("Killing user %s due to throttle [%d,%d] on facility %s",
+                u->nick, throttling_facility->throttle[0], throttling_facility->throttle[1],
+                throttling_facility->hostpart);
         syn_kill2(u, "Throttled", "%s", throttlemessage);
         return;
     }
 
-    if (blocked || blacklisted)
+    if (blocked)
     {
-        syn_kill(u, "%s", blockmessage);
+        syn_report("Killing user %s; blocked by facility %s", 
+                u->nick, blocking_facility ? blocking_facility->hostpart : "(unknown)");
+        syn_kill2(u, "Facility Blocked", "%s", blockmessage);
         return;
+    }
+
+    if (blacklisted)
+    {
+        syn_report("Killing user %s; blacklisted in facility %s (%s)",
+                u->nick, blocking_facility->hostpart, blocking_regex);
+        syn_kill(u, "%s", blockmessage);
     }
 
     switch (cloak)
