@@ -348,6 +348,11 @@ void facility_newuser(void *v)
         case facility_cloak_hex_ident:
             {
                 char *ipstart = strstr(u->host, "session");
+                if (ipstart == NULL)
+                {
+                    syn_debug(2, "Hex IP cloaking used for %s, but I couldn't find a session marker in %s", u->nick, u->host);
+                    break;
+                }
                 const char *ident = u->user;
                 if (*ident == '~')
                     ++ident;
@@ -362,10 +367,17 @@ void facility_newuser(void *v)
                     break;
                 }
                 // If we couldn't decode an IP, fall through...
+                syn_debug(2, "Hex IP cloaking used for %s, but I couldn't decode ident %s", u->nick, ident);
+                syn_debug(2, "Falling back to random cloaking...");
             }
         case facility_cloak_random:
             {
                 char *randstart = strstr(u->host, "session");
+                if (randstart == NULL)
+                {
+                    syn_debug(2, "Random cloaking used for %s, but I couldn't find a session marker in %s", u->nick, u->host);
+                    break;
+                }
                 strncpy(randstart, get_random_host_part(), u->host + HOSTLEN - randstart);
                 sethost_sts(syn->me, u, u->host);
                 break;
