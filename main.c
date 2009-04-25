@@ -18,7 +18,7 @@ list_t syn_conftable;
 struct
 {
     char *channel;
-    int debug;
+    unsigned int debug;
 } syn_config;
 
 void _modinit(module_t *m)

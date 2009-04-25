@@ -25,6 +25,7 @@ static void check_all_users(void *v)
 void _modinit(module_t *m)
 {
     use_syn_main_symbols(m);
+    use_syn_util_symbols(m);
     use_syn_kline_symbols(m);
 
     hook_add_event("user_add");
@@ -39,22 +40,6 @@ void _moddeinit()
 {
     hook_del_hook("user_add", gateway_newuser);
     hook_del_hook("syn_kline_add", check_all_users);
-}
-
-const char *decode_hex_ip(const char *hex)
-{
-    static char buf[16];
-    unsigned int ip = 0;
-
-    buf[0] = '\0';
-
-    sscanf(hex, "%x", &ip);
-
-    if (ip == 0)
-        return NULL;
-
-    sprintf(buf, "%hhu.%hhu.%hhu.%hhu", (ip >> 24) & 0xff, (ip >> 16) & 0xff, (ip >> 8) & 0xff, ip & 0xff);
-    return buf;
 }
 
 static void gateway_newuser(void *v)
@@ -90,13 +75,13 @@ static void gateway_newuser(void *v)
     if (p != NULL)
         *p++ = '\0';
 
-    if (k = syn_find_kline(NULL, gecos))
+    if ((k = syn_find_kline(NULL, gecos)))
     {
         syn_report("Killing user %s; realname host matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
         syn_kill(u, "Your reported hostname [%s] is banned: %s", gecos, k->reason);
         return;
     }
-    else if (k = syn_find_kline(NULL, p))
+    else if ((k = syn_find_kline(NULL, p)))
     {
         syn_report("Killing user %s; realname host matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
         syn_kill(u, "Your reported hostname [%s] is banned: %s", p, k->reason);

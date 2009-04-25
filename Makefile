@@ -12,7 +12,7 @@ clean:
 	rm -f $(MODULES)
 
 %.so: %.c syn.h
-	gcc -O1 -ggdb3 -fPIC $(ATHEME_CFLAGS) -shared -o$@ $<
+	gcc -std=c99 -Wall -Werror -O1 -ggdb3 -fPIC $(ATHEME_CFLAGS) -shared -o$@ $<
 
 .PHONY: install
 

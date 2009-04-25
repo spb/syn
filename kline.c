@@ -185,6 +185,24 @@ void _syn_kill(user_t *victim, const char *reason, ...)
     va_end(ap);
 }
 
+static void _syn_vkill2(user_t *victim, const char *killreason, const char *reason, va_list ap)
+{
+    char buf[BUFSIZE];
+    vsnprintf(buf, BUFSIZE, reason, ap);
+    notice(syn->nick, victim->nick, buf);
+    kill_user(syn->me, victim, "%s", killreason);
+}
+
+
+void _syn_kill2(user_t *victim, const char *killreason, const char *reason, ...)
+{
+    va_list ap;
+
+    va_start(ap, reason);
+    _syn_vkill2(victim, killreason, reason, ap);
+    va_end(ap);
+}
+
 void _syn_kill_or_kline(user_t *victim, int duration, const char *reason, ...)
 {
     va_list ap;

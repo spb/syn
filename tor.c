@@ -19,7 +19,7 @@ static void load_tor_list();
 
 mowgli_patricia_t *torlist;
 
-int kline_duration = 24 * 3600;
+unsigned int kline_duration = 24 * 3600;
 char *kline_reason;
 
 void _modinit(module_t *m)
