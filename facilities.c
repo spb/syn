@@ -283,10 +283,10 @@ void facility_newuser(void *v)
 
     MOWGLI_DICTIONARY_FOREACH(f, &state, facilities)
     {
-        syn_debug(2, "User %s matches facility %s", u->nick, f->hostpart);
-
         if (0 == strncasecmp(u->host, f->hostpart, strlen(f->hostpart)))
         {
+            syn_debug(2, "User %s matches facility %s", u->nick, f->hostpart);
+
             if (f->blocked > 0)
                 blocked = 1;
             if (f->blocked < 0)
