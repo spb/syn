@@ -110,7 +110,7 @@ void syn_debug(int debuglevel, char *fmt, ...)
     vsnprintf(buf, BUFSIZE, fmt, ap);
     va_end(ap);
 
-    msg(syn->nick, syn_config.channel, "%s", buf);
+    msg(syn->nick, syn_config.channel, "[debug%d] %s", debuglevel, buf);
 }
 
 void syn_report(char *fmt, ...)
