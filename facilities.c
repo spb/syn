@@ -23,7 +23,7 @@ static void syn_cmd_facility_del(sourceinfo_t *si, int parc, char **parv);
 static void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv);
 static void syn_cmd_facility_addbl(sourceinfo_t *si, int parc, char **parv);
 static void syn_cmd_facility_rmbl(sourceinfo_t *si, int parc, char **parv);
-static void syn_cmd_facility_lsbl(sourceinfo_t *si, int parc, char **parv);
+static void syn_cmd_facility_show(sourceinfo_t *si, int parc, char **parv);
 
 command_t syn_facility_list = { "LIST", N_("Displays defined facilities"), "syn:facility", 1, syn_cmd_facility_list };
 command_t syn_facility_add = { "ADD", N_("Configures a new facility"), "syn:facility:admin", 2, syn_cmd_facility_add };
@@ -31,7 +31,7 @@ command_t syn_facility_del = { "DEL", N_("Removes a configured facility"), "syn:
 command_t syn_facility_set = { "SET", N_("Modifies a configured facility"), "syn:facility:admin", 3, syn_cmd_facility_set };
 command_t syn_facility_addbl = { "ADDBL", N_("Adds a blacklist entry for a faciltiy"), "syn:facility", 2, syn_cmd_facility_addbl };
 command_t syn_facility_rmbl = { "RMBL", N_("Removes a blacklist entry from a facility"), "syn:facility", 2, syn_cmd_facility_rmbl };
-command_t syn_facility_lsbl = { "LSBL", N_("Lists configured blacklist for a facility"), "syn:facility", 1, syn_cmd_facility_lsbl };
+command_t syn_facility_show = { "SHOW", N_("Displays information about a facility"), "syn:facility", 1, syn_cmd_facility_show };
 
 typedef enum
 {
@@ -169,13 +169,19 @@ void load_facilities()
         {
             char *msg = strtok(NULL, "");
             if (msg)
+            {
+                strip(msg);
                 curr_facility->blockmessage = sstrdup(msg);
+            }
         }
         else if (0 == strcmp(token, "TM"))
         {
             char *msg = strtok(NULL, "");
             if (msg)
+            {
+                strip(msg);
                 curr_facility->throttlemessage = sstrdup(msg);
+            }
         }
         else if (0 == strcmp(token, "BL"))
         {
@@ -243,7 +249,7 @@ void _modinit(module_t *m)
     command_add(&syn_facility_set, &syn_facility_cmds);
     command_add(&syn_facility_addbl, &syn_facility_cmds);
     command_add(&syn_facility_rmbl, &syn_facility_cmds);
-    command_add(&syn_facility_lsbl, &syn_facility_cmds);
+    command_add(&syn_facility_show, &syn_facility_cmds);
 
     facility_heap = BlockHeapCreate(sizeof(facility_t), HEAP_USER);
     blacklist_heap = BlockHeapCreate(sizeof(bl_entry_t), HEAP_USER);
@@ -607,12 +613,12 @@ void syn_cmd_facility_rmbl(sourceinfo_t *si, int parc, char **parv)
     }
 }
 
-void syn_cmd_facility_lsbl(sourceinfo_t *si, int parc, char **parv)
+void syn_cmd_facility_show(sourceinfo_t *si, int parc, char **parv)
 {
     if (parc < 1)
     {
-        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "FACILITY LSBL");
-        command_fail(si, fault_needmoreparams, "Syntax: FACILITY LSBL <hostpart>");
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "FACILITY SHOW");
+        command_fail(si, fault_needmoreparams, "Syntax: FACILITY SHOW <hostpart>");
         return;
     }
 
@@ -622,6 +628,16 @@ void syn_cmd_facility_lsbl(sourceinfo_t *si, int parc, char **parv)
         command_fail(si, fault_badparams, "No such facility %s", parv[0]);
         return;
     }
+
+    command_success_nodata(si, "Facility %s:", f->hostpart);
+    command_success_nodata(si, "  cloaking method: %s", string_from_cloak_type(f->cloaking));
+    command_success_nodata(si, "  %s, block message \"%s\"",
+            f->blocked > 0 ? "blocked" : ( f->blocked < 0 ? "unblocked" : "not blocked"),
+            f->blockmessage);
+    command_success_nodata(si, "  Throttle rate %d/%d, throttle message \"%s\"",
+            f->throttle_limit[0], f->throttle_limit[1], f->throttlemessage);
+
+    command_success_nodata(si, "Blacklist:");
 
     int count = 0;
     node_t *n;
