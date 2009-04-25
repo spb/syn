@@ -83,14 +83,13 @@ typedef struct
     char *blockmessage;
 
     char *throttlemessage;
-    int throttle_limit[2];
+    int throttle[2];
 
     facility_cloak_type cloaking;
 
     list_t blacklist;
 
-    int throttle_count;
-    time_t last_throttle_update;
+    time_t throttle_latest;
 } facility_t;
 
 typedef struct
@@ -155,8 +154,8 @@ void load_facilities()
             strncpy(curr_facility->hostpart, hostpart, HOSTLEN);
             curr_facility->cloaking = cloak_type_from_string(cloaking);
             curr_facility->blocked = atoi(blocked);
-            curr_facility->throttle_limit[0] = atoi(throttle0);
-            curr_facility->throttle_limit[1] = atoi(throttle1);
+            curr_facility->throttle[0] = atoi(throttle0);
+            curr_facility->throttle[1] = atoi(throttle1);
 
             mowgli_dictionary_add(facilities, curr_facility->hostpart, curr_facility);
             continue;
@@ -215,7 +214,7 @@ void save_facilities()
     MOWGLI_DICTIONARY_FOREACH(f, &state, facilities)
     {
         fprintf(db, "F %s %s %d %d %d\n", f->hostpart, string_from_cloak_type(f->cloaking),
-                f->blocked, f->throttle_limit[0], f->throttle_limit[1]);
+                f->blocked, f->throttle[0], f->throttle[1]);
         if (f->blockmessage)
             fprintf(db, "BM %s\n", f->blockmessage);
         if (f->throttlemessage)
@@ -295,11 +294,18 @@ void facility_newuser(void *v)
             if (f->blockmessage)
                 blockmessage = f->blockmessage;
 
-            if (f->throttle_limit[0] > 0 &&
-                (++f->throttle_count > f->throttle_limit[0]))
+            if (f->throttle[0] > 0)
             {
-                throttled = 1;
-                throttlemessage = f->throttlemessage;
+                if (f->throttle_latest < CURRTIME)
+                    f->throttle_latest = CURRTIME;
+
+                f->throttle_latest += f->throttle[0];
+
+                if (f->throttle_latest > (f->throttle[1] * f->throttle[0]) + CURRTIME)
+                {
+                    throttled = 1;
+                    throttlemessage = f->throttlemessage;
+                }
             }
 
             if (f->cloaking != facility_cloak_undefined)
@@ -424,7 +430,7 @@ void syn_cmd_facility_list(sourceinfo_t *si, int parc, char **parv)
         command_success_nodata(si, "[%d] %s (cloaking %s, %s, throttle %d/%d)",
                 ++count, f->hostpart, string_from_cloak_type(f->cloaking),
                 (f->blocked > 0 ? "blocked" : (f->blocked < 0 ? "unblocked" : "not blocked")),
-                f->throttle_limit[0], f->throttle_limit[1]);
+                f->throttle[0], f->throttle[1]);
     }
 
     command_success_nodata(si, "%d facilit%s configured", count, count == 1 ? "y" : "ies");
@@ -524,11 +530,11 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
         }
         *p++ = '\0';
 
-        f->throttle_limit[0] = atoi(buf);
-        f->throttle_limit[1] = atoi(p);
+        f->throttle[0] = atoi(buf);
+        f->throttle[1] = atoi(p);
 
         command_success_nodata(si, "Throttle for %s was set to %d seconds, burst %d",
-                f->hostpart, f->throttle_limit[0], f->throttle_limit[1]);
+                f->hostpart, f->throttle[0], f->throttle[1]);
         return;
     }
 
@@ -649,7 +655,7 @@ void syn_cmd_facility_show(sourceinfo_t *si, int parc, char **parv)
             f->blocked > 0 ? "blocked" : ( f->blocked < 0 ? "unblocked" : "not blocked"),
             f->blockmessage);
     command_success_nodata(si, "  Throttle rate %d/%d, throttle message \"%s\"",
-            f->throttle_limit[0], f->throttle_limit[1], f->throttlemessage);
+            f->throttle[0], f->throttle[1], f->throttlemessage);
 
     command_success_nodata(si, "Blacklist:");
 
