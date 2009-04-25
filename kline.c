@@ -156,7 +156,7 @@ static void _syn_vkline(const char *host, int duration, const char *reason, va_l
 
     kline_sts("*", "*", k->host, k->duration, k->reason);
 
-    syn_debug(1, "Added K:line %s@%s (%s)", k->user, k->host, k->reason);
+    syn_debug(1, "Received K:line %s@%s (%s)", k->user, k->host, k->reason);
 }
 
 void _syn_kline(const char *host, int duration, const char *reason, ...)
