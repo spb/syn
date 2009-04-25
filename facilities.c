@@ -189,6 +189,8 @@ void load_facilities()
             if (!regex)
                 continue;
 
+            strip(regex);
+
             bl_entry_t *bl = BlockHeapAlloc(blacklist_heap);
             bl->regex = sstrdup(regex);
             bl->re = regex_create(bl->regex, AREGEX_ICASE | AREGEX_PCRE);
