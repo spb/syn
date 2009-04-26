@@ -284,39 +284,39 @@ void facility_newuser(void *v)
 
     MOWGLI_DICTIONARY_FOREACH(f, &state, facilities)
     {
-        if (0 == strncasecmp(u->host, f->hostpart, strlen(f->hostpart)))
+        if (0 != strncasecmp(u->host, f->hostpart, strlen(f->hostpart)))
+            continue;
+
+        syn_debug(2, "User %s matches facility %s", u->nick, f->hostpart);
+
+        if (f->blocked > 0)
         {
-            syn_debug(2, "User %s matches facility %s", u->nick, f->hostpart);
-
-            if (f->blocked > 0)
-            {
-                blocked = 1;
-                blocking_facility = f;
-            }
-            if (f->blocked < 0)
-                blocked = 0;
-
-            if (f->blockmessage)
-                blockmessage = f->blockmessage;
-
-            if (f->throttle[0] > 0)
-            {
-                if (f->throttle_latest < CURRTIME)
-                    f->throttle_latest = CURRTIME;
-
-                f->throttle_latest += f->throttle[0];
-
-                if (f->throttle_latest > (f->throttle[1] * f->throttle[0]) + CURRTIME)
-                {
-                    throttled = 1;
-                    throttling_facility = f;
-                    throttlemessage = f->throttlemessage;
-                }
-            }
-
-            if (f->cloaking != facility_cloak_undefined)
-                cloak = f->cloaking;
+            blocked = 1;
+            blocking_facility = f;
         }
+        if (f->blocked < 0)
+            blocked = 0;
+
+        if (f->blockmessage)
+            blockmessage = f->blockmessage;
+
+        if (f->throttle[0] > 0)
+        {
+            if (f->throttle_latest < CURRTIME)
+                f->throttle_latest = CURRTIME;
+
+            f->throttle_latest += f->throttle[0];
+
+            if (f->throttle_latest > (f->throttle[1] * f->throttle[0]) + CURRTIME)
+            {
+                throttled = 1;
+                throttling_facility = f;
+                throttlemessage = f->throttlemessage;
+            }
+        }
+
+        if (f->cloaking != facility_cloak_undefined)
+            cloak = f->cloaking;
 
         char nuh[NICKLEN+USERLEN+HOSTLEN+GECOSLEN];
         snprintf(nuh, sizeof(nuh), "%s!%s@%s %s", u->nick, u->user, u->host, u->gecos);
