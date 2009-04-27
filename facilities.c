@@ -475,6 +475,8 @@ void syn_cmd_facility_add(sourceinfo_t *si, int parc, char **parv)
     mowgli_dictionary_add(facilities, f->hostpart, f);
 
     command_success_nodata(si, "Added facility %s", f->hostpart);
+
+    save_facilities();
 }
 
 void syn_cmd_facility_del(sourceinfo_t *si, int parc, char **parv)
@@ -497,6 +499,8 @@ void syn_cmd_facility_del(sourceinfo_t *si, int parc, char **parv)
     free_facility(f, NULL);
     mowgli_dictionary_delete(facilities, parv[0]);
     command_success_nodata(si, "Facility %s deleted", parv[0]);
+
+    save_facilities();
 }
 
 
@@ -587,6 +591,8 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
     }
 
     command_fail(si, fault_badparams, "Unknown setting name");
+
+    save_facilities();
 }
 
 
@@ -614,6 +620,8 @@ void syn_cmd_facility_addbl(sourceinfo_t *si, int parc, char **parv)
     node_add(bl, node_create(), &f->blacklist);
 
     command_success_nodata(si, "Added blacklist \"%s\" for %s", bl->regex, f->hostpart);
+
+    save_facilities();
 }
 
 
@@ -651,6 +659,8 @@ void syn_cmd_facility_rmbl(sourceinfo_t *si, int parc, char **parv)
 
         command_success_nodata(si, "Removed blacklist \"%s\" from %s", parv[1], f->hostpart);
     }
+
+    save_facilities();
 }
 
 void syn_cmd_facility_show(sourceinfo_t *si, int parc, char **parv)
