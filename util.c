@@ -37,4 +37,41 @@ const char *get_random_host_part()
     return buf;
 }
 
+time_t syn_parse_duration(const char *s)
+{
+    time_t duration = atol(s);
+    while (isdigit(*s))
+        s++;
+    switch (*s)
+    {
+        case 'H':
+        case 'h':
+            duration *= 60;
+            break;
+        case 'D':
+        case 'd':
+            duration *= 1440;
+            break;
+        case 'W':
+        case 'w':
+            duration *= 10080;
+            break;
+    }
+    return duration;
+}
+
+const char *syn_format_expiry(time_t t)
+{
+    static char expirybuf[BUFSIZE];
+    if (t > 0)
+    {
+        strftime(expirybuf, BUFSIZE, "%d/%m/%Y %H:%M:%S", gmtime(&t));
+    }
+    else
+    {
+        strcpy(expirybuf, "never");
+    }
+
+    return expirybuf;
+}
 

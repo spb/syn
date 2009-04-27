@@ -14,10 +14,12 @@ static void masks_newuser(void *v);
 static void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv);
 static void syn_cmd_delmask(sourceinfo_t *si, int parc, char **parv);
 static void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv);
+static void syn_cmd_listmask(sourceinfo_t *si, int parc, char **parv);
 
 command_t syn_addmask = { "ADDMASK", N_("Adds a lethal, suspicious or exempt mask"), "syn:general", 1, syn_cmd_addmask };
 command_t syn_delmask = { "DELMASK", N_("Removes a lethal, suspicious or exempt mask"), "syn:general", 1, syn_cmd_delmask };
 command_t syn_setmask = { "SETMASK", N_("Modifies settings for a lethal, suspicious or exempt mask"), "syn:general", 1, syn_cmd_setmask };
+command_t syn_listmask = { "LISTMASK", N_("Displays configured mask lists"), "syn:general", 1, syn_cmd_listmask };
 
 static unsigned int lethal_mask_duration = 3600*24;
 static char *lethal_mask_message = NULL;
@@ -67,11 +69,31 @@ mask_type mask_type_from_string(const char *s)
     return mask_unknown;
 }
 
+static void check_expiry(void *v)
+{
+    node_t *n, *tn;
+    LIST_FOREACH_SAFE(n, tn, masks.head)
+    {
+        mask_t *m = n->data;
+
+        if (m->expires == 0)
+            continue;
+        if (m->expires > CURRTIME)
+            continue;
+
+        syn_report("Expiring %s mask \2%s\2", string_from_mask_type(m->type), m->regex);
+        regex_destroy(m->re);
+        free(m->regex);
+        free(m);
+        node_del(n, &masks);
+    }
+}
 
 
 void _modinit(module_t *m)
 {
     use_syn_main_symbols(m);
+    use_syn_util_symbols(m);
     use_syn_kline_symbols(m);
 
     lethal_mask_message = sstrdup("Banned");
@@ -82,14 +104,24 @@ void _modinit(module_t *m)
     command_add(&syn_addmask, syn_cmdtree);
     command_add(&syn_delmask, syn_cmdtree);
     command_add(&syn_setmask, syn_cmdtree);
+    command_add(&syn_listmask, syn_cmdtree);
 
     hook_add_event("user_add");
     hook_add_hook("user_add", masks_newuser);
+
+    event_add("masks_check_expiry", check_expiry, NULL, 60);
 }
 
 void _moddeinit()
 {
+    command_delete(&syn_addmask, syn_cmdtree);
+    command_delete(&syn_delmask, syn_cmdtree);
+    command_delete(&syn_setmask, syn_cmdtree);
+    command_delete(&syn_listmask, syn_cmdtree);
+
     hook_del_hook("user_add", masks_newuser);
+
+    event_delete(check_expiry, NULL);
 }
 
 void masks_newuser(void *v)
@@ -156,6 +188,7 @@ void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv)
     mask_type type;
     mask_t *newmask;
     int flags;
+    time_t duration = 0;
 
     char *args = parv[0];
 
@@ -174,10 +207,7 @@ void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv)
         return;
     }
 
-    stype = args;
-
-    while (*stype == ' ')
-        ++stype;
+    stype = strtok(args, " ");
 
     if (*stype == '\0')
     {
@@ -191,6 +221,12 @@ void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv)
     {
         command_fail(si, fault_badparams, "Invalid mask type \2%s\2.", stype);
         return;
+    }
+
+    char *sduration = strtok(NULL, " ");
+    if (sduration && *sduration == '~')
+    {
+        duration = syn_parse_duration(++sduration);
     }
 
     node_t *n;
@@ -217,16 +253,146 @@ void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv)
     newmask->reflags = flags;
     newmask->re = regex;
     newmask->type = type;
+    if (duration > 0)
+        newmask->expires = CURRTIME + 60*duration;
+    else
+        newmask->expires = 0;
 
     node_add(newmask, node_create(), &masks);
-    command_success_nodata(si, "Added \2%s\2 to %s mask list", pattern, stype);
+
+    command_success_nodata(si, "Added \2%s\2 to %s mask list, expiring %s.",
+                            pattern, stype, syn_format_expiry(newmask->expires));
 }
 
 void syn_cmd_delmask(sourceinfo_t *si, int parc, char **parv)
 {
+    char *args = parv[0];
+
+    if (!args)
+    {
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "DELMASK");
+        command_fail(si, fault_needmoreparams, "Syntax: DELMASK /<regex>/");
+        return;
+    }
+
+    int flags = 0;
+    char *pattern = regex_extract(args, &args, &flags);
+
+    if (!pattern)
+    {
+        command_fail(si, fault_badparams, STR_INVALID_PARAMS, "DELMASK");
+        command_fail(si, fault_needmoreparams, "Syntax: DELMASK /<regex>/");
+        return;
+    }
+
+    node_t *n, *tn;
+    LIST_FOREACH_SAFE(n, tn, masks.head)
+    {
+        mask_t *m = n->data;
+        if (0 == strcmp(pattern, m->regex))
+        {
+            command_success_nodata(si, "Removing \2%s\2 from %s mask list", pattern, string_from_mask_type(m->type));
+            regex_destroy(m->re);
+            free(m->regex);
+            free(m);
+            node_del(n, &masks);
+            return;
+        }
+    }
+
+    command_fail(si, fault_nochange, "\2%s\2 was not found in any mask list", pattern);
 }
 
 void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv)
 {
+    char *args = parv[0];
+
+    if (!args)
+    {
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "SETMASK");
+        command_fail(si, fault_needmoreparams, "Syntax: SETMASK /<regex>/");
+        return;
+    }
+
+    int flags = 0;
+    char *pattern = regex_extract(args, &args, &flags);
+
+    if (!pattern)
+    {
+        command_fail(si, fault_badparams, STR_INVALID_PARAMS, "SETMASK");
+        command_fail(si, fault_needmoreparams, "Syntax: SETMASK /<regex>/");
+        return;
+    }
+
+    node_t *n, *tn;
+    mask_t *m;
+    LIST_FOREACH_SAFE(n, tn, masks.head)
+    {
+        m = n->data;
+        if (0 == strcmp(pattern, m->regex))
+            break;
+        m = NULL;
+    }
+
+    if (!m)
+    {
+        command_fail(si, fault_nochange, "\2%s\2 was not found in any mask list", pattern);
+        return;
+    }
+
+    char *nextarg = strtok(args, " ");
+    mask_type t = mask_type_from_string(nextarg);
+    if (t != mask_unknown)
+    {
+        m->type = t;
+        command_success_nodata(si, "Changed type of mask \2%s\2 to %s", pattern, nextarg);
+        return;
+    }
+
+    if (*nextarg == '~')
+    {
+        time_t duration = syn_parse_duration(++nextarg);
+        if (duration > 0)
+        {
+            m->expires = CURRTIME + duration * 60;
+            command_success_nodata(si, "Changed expiry of mask \2%s\2 to %ld minutes", pattern, duration);
+        }
+        else
+        {
+            m->expires = 0;
+            command_success_nodata(si, "Expiry disabled for mask \2%s\2.", pattern);
+        }
+        return;
+    }
+
+    command_fail(si, fault_badparams, STR_INVALID_PARAMS, "SETMASK");
+    command_fail(si, fault_badparams, "Syntax: SETMASK /<regex>/ <type>");
 }
 
+void syn_cmd_listmask(sourceinfo_t *si, int parc, char **parv)
+{
+    mask_type t = mask_unknown;
+
+    if (parc > 0)
+    {
+        t = mask_type_from_string(parv[0]);
+    }
+
+    int count = 0;
+
+    node_t *n;
+    LIST_FOREACH(n, masks.head)
+    {
+        mask_t *m = n->data;
+
+        if (t != mask_unknown && t != m->type)
+            continue;
+
+        command_success_nodata(si, "\2%s\2 (%s), expires %s",
+                m->regex, string_from_mask_type(m->type), syn_format_expiry(m->expires));
+
+        ++count;
+    }
+
+    command_success_nodata(si, "%d masks found", count);
+}

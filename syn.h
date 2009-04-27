@@ -23,11 +23,15 @@ inline void use_syn_main_symbols(module_t *m)
 
 const char* (*decode_hex_ip)(const char *);
 const char* (*get_random_host_part)();
+time_t (*syn_parse_duration)(const char *);
+const char* (*syn_format_expiry)(time_t);
 
 inline void use_syn_util_symbols(module_t *m)
 {
     MODULE_USE_SYMBOL(decode_hex_ip, "syn/util", "decode_hex_ip");
     MODULE_USE_SYMBOL(get_random_host_part, "syn/util", "get_random_host_part");
+    MODULE_USE_SYMBOL(syn_parse_duration, "syn/util", "syn_parse_duration");
+    MODULE_USE_SYMBOL(syn_format_expiry, "syn/util", "syn_format_expiry");
 }
 
 kline_t* (*syn_find_kline)(const char *, const char *);
