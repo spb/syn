@@ -36,6 +36,7 @@ void _modinit(module_t *m)
     add_uint_conf_item("DEBUG", &syn_conftable, &syn_config.debug, 0, 15);
 
     syn = service_add("syn", syn_handler, &syn_cmdtree, &syn_conftable);
+    service_set_chanmsg(syn, true);
 }
 
 void _moddeinit()
@@ -70,9 +71,26 @@ static void syn_handler(sourceinfo_t *si, int parc, char *parv[])
     /* make a copy of the original for debugging */
     strlcpy(orig, parv[parc - 1], BUFSIZE);
 
-    /* lets go through this to get the command */
-    cmd = strtok(parv[parc - 1], " ");
-    text = strtok(NULL, "");
+    // Is this a message to a channel?
+    if (parv[0][0] == '#')
+    {
+        if (!syn_config.channel || 0 != strcmp(syn_config.channel, parv[0]))
+            return;
+
+        char *firstarg = strtok(parv[parc-1], " ");
+        if (!firstarg || 0 != strncmp(si->service->nick, firstarg, strlen(si->service->nick)))
+            return;
+
+        si->c = channel_find(parv[0]);
+
+        cmd = strtok(NULL, " ");
+        text = strtok(NULL, "");
+    }
+    else
+    {
+        cmd = strtok(parv[parc - 1], " ");
+        text = strtok(NULL, "");
+    }
 
     if (!cmd)
         return;
