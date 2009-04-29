@@ -187,7 +187,7 @@ static void syn_cmd_showrate(sourceinfo_t *si, int parc, char **parv)
 {
     if (parc == 0)
     {
-        command_success_nodata(si, "Global warning threshold is %d seconds, %d burst", default_rate, default_burst);
+        syn_respond(si, "Global warning threshold is %d seconds, %d burst", default_rate, default_burst);
         return;
     }
 
@@ -195,11 +195,11 @@ static void syn_cmd_showrate(sourceinfo_t *si, int parc, char **parv)
 
     if (!ce || !ce->use_custom)
     {
-        command_success_nodata(si, "No custom warning threshold is set for %s", parv[0]);
+        syn_respond(si, "No custom warning threshold is set for %s", parv[0]);
         return;
     }
 
-    command_success_nodata(si, "Warning threshold for %s is %d seconds, %d burst", ce->chname, ce->rate[0], ce->rate[1]);
+    syn_respond(si, "Warning threshold for %s is %d seconds, %d burst", ce->chname, ce->rate[0], ce->rate[1]);
 }
 
 
@@ -207,8 +207,8 @@ static void syn_cmd_setrate(sourceinfo_t *si, int parc, char **parv)
 {
     if (parc < 2)
     {
-        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "SETRATE");
-        command_fail(si, fault_needmoreparams, _("Syntax: SETRATE [#channel] default|(<rate> <burst>)"));
+        syn_respond(si, STR_INSUFFICIENT_PARAMS, "SETRATE");
+        syn_respond(si, _("Syntax: SETRATE [#channel] default|(<rate> <burst>)"));
         return;
     }
 
@@ -220,8 +220,8 @@ static void syn_cmd_setrate(sourceinfo_t *si, int parc, char **parv)
 
         if (r * b == 0)
         {
-            command_fail(si, fault_badparams, STR_INVALID_PARAMS, "SETRATE");
-            command_fail(si, fault_needmoreparams, _("Syntax: SETRATE [#channel] default|(<rate> <burst>)"));
+            syn_respond(si, STR_INVALID_PARAMS, "SETRATE");
+            syn_respond(si, _("Syntax: SETRATE [#channel] default|(<rate> <burst>)"));
             return;
         }
 
@@ -229,7 +229,7 @@ static void syn_cmd_setrate(sourceinfo_t *si, int parc, char **parv)
         default_burst = b;
 
         syn_report("\002SETRATE\002 default->%d/%d by %s", default_rate, default_burst, get_oper_name(si));
-        command_success_nodata(si, "Warning threshold set to %d seconds, with a burst of %d", default_rate, default_burst);
+        syn_respond(si, "Warning threshold set to %d seconds, with a burst of %d", default_rate, default_burst);
         return;
     }
 
@@ -239,19 +239,19 @@ static void syn_cmd_setrate(sourceinfo_t *si, int parc, char **parv)
     {
         if (!ce || !ce->use_custom)
         {
-            command_fail(si, fault_nochange, "No custom rate settings were defined for %s", parv[0]);
+            syn_respond(si, "No custom rate settings were defined for %s", parv[0]);
             return;
         }
         ce->use_custom = false;
         syn_report("\002SETRATE\002 %s->default by %s", parv[0], get_oper_name(si));
-        command_success_nodata(si, "Custom rate settings have been disabled for %s", parv[0]);
+        syn_respond(si, "Custom rate settings have been disabled for %s", parv[0]);
         return;
     }
 
     if (parc < 3)
     {
-        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "SETRATE");
-        command_fail(si, fault_needmoreparams, _("Syntax: SETRATE [#channel] default|(<rate> <burst>)"));
+        syn_respond(si, STR_INSUFFICIENT_PARAMS, "SETRATE");
+        syn_respond(si, _("Syntax: SETRATE [#channel] default|(<rate> <burst>)"));
         return;
     }
 
@@ -268,8 +268,8 @@ static void syn_cmd_setrate(sourceinfo_t *si, int parc, char **parv)
 
     if (r * b == 0)
     {
-        command_fail(si, fault_badparams, STR_INVALID_PARAMS, "SETRATE");
-        command_fail(si, fault_needmoreparams, _("Syntax: SETRATE [#channel] default|(<rate> <burst>)"));
+        syn_respond(si, STR_INVALID_PARAMS, "SETRATE");
+        syn_respond(si, _("Syntax: SETRATE [#channel] default|(<rate> <burst>)"));
         return;
     }
 
@@ -278,5 +278,5 @@ static void syn_cmd_setrate(sourceinfo_t *si, int parc, char **parv)
     ce->rate[1] = b;
 
     syn_report("\002SETRATE\002 %s->%d/%d by %s", parv[0], r, b, get_oper_name(si));
-    command_success_nodata(si, "Warning threshold for %s set to %d seconds, with a burst of %d", parv[0], r, b);
+    syn_respond(si, "Warning threshold for %s set to %d seconds, with a burst of %d", parv[0], r, b);
 }

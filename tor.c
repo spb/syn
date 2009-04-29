@@ -117,8 +117,8 @@ static void syn_cmd_checktor(sourceinfo_t *si, int parc, char **parv)
 {
     if (!parv[0])
     {
-        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "CHECKTOR");
-        command_fail(si, fault_needmoreparams, _("Syntax: CHECKTOR <IP|user>"));
+        syn_respond(si, STR_INSUFFICIENT_PARAMS, "CHECKTOR");
+        syn_respond(si, _("Syntax: CHECKTOR <IP|user>"));
         return;
     }
 
@@ -130,7 +130,7 @@ static void syn_cmd_checktor(sourceinfo_t *si, int parc, char **parv)
         user_t *target_u = user_find_named(parv[0]);
         if (!target_u)
         {
-            command_fail(si, fault_nosuch_target, _("\2%s\2 is not online."), parv[0]);
+            syn_respond(si, _("\2%s\2 is not online."), parv[0]);
             return;
         }
         test = target_u->ip;
@@ -138,6 +138,6 @@ static void syn_cmd_checktor(sourceinfo_t *si, int parc, char **parv)
 
     p = mowgli_patricia_retrieve(torlist, test);
 
-    command_success_nodata(si, _("\2%s\2 is %s as a tor node."), test, p != NULL ? "listed" : "not listed");
+    syn_respond(si, _("\2%s\2 is %s as a tor node."), test, p != NULL ? "listed" : "not listed");
 }
 
