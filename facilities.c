@@ -474,6 +474,8 @@ void syn_cmd_facility_add(sourceinfo_t *si, int parc, char **parv)
 
     mowgli_dictionary_add(facilities, f->hostpart, f);
 
+    syn_report("\002FACILITY ADD\002 %s by %s", f->hostpart, get_oper_name(si));
+
     command_success_nodata(si, "Added facility %s", f->hostpart);
 
     save_facilities();
@@ -498,6 +500,9 @@ void syn_cmd_facility_del(sourceinfo_t *si, int parc, char **parv)
 
     free_facility(f, NULL);
     mowgli_dictionary_delete(facilities, parv[0]);
+
+    syn_report("\002FACILITY DEL\002 %s by %s", parv[0], get_oper_name(si));
+
     command_success_nodata(si, "Facility %s deleted", parv[0]);
 
     save_facilities();
@@ -525,6 +530,9 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
     {
         facility_cloak_type cloak = cloak_type_from_string(parv[2]);
         f->cloaking = cloak;
+
+        syn_report("\002FACILITY SET\002 cloaking->%s for %s by %s",
+                string_from_cloak_type(cloak), f->hostpart, get_oper_name(si));
         command_success_nodata(si, "Cloaking method for %s set to %s", f->hostpart, string_from_cloak_type(cloak));
         return;
     }
@@ -536,6 +544,8 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
         else
             f->blocked = atoi(parv[2]);
 
+        syn_report("\002FACILITY SET\002 blocked->%d for %s by %s",
+                f->blocked, f->hostpart, get_oper_name(si));
         command_success_nodata(si, "Blocked for %s was set to %d", f->hostpart, f->blocked);
         return;
     }
@@ -557,6 +567,8 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
         f->throttle[0] = atoi(buf);
         f->throttle[1] = atoi(p);
 
+        syn_report("\002FACILITY SET\002 throttle->%d/%d for %s by %s",
+                f->throttle[0], f->throttle[1], f->hostpart, get_oper_name(si));
         command_success_nodata(si, "Throttle for %s was set to %d seconds, burst %d",
                 f->hostpart, f->throttle[0], f->throttle[1]);
         return;
@@ -572,6 +584,8 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
         else
             f->blockmessage = sstrdup(parv[2]);
 
+        syn_report("\002FACILITY SET\002 block message->%s for %s by %s",
+                f->blockmessage, f->hostpart, get_oper_name(si));
         command_success_nodata(si, "Block message for %s was set to %s", f->hostpart, f->blockmessage);
         return;
     }
@@ -586,6 +600,8 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
         else
             f->throttlemessage = sstrdup(parv[2]);
 
+        syn_report("\002FACILITY SET\002 throttle message->%s for %s by %s",
+                f->throttlemessage, f->hostpart, get_oper_name(si));
         command_success_nodata(si, "Throttle message for %s was set to %s", f->hostpart, f->throttlemessage);
         return;
     }
@@ -619,6 +635,7 @@ void syn_cmd_facility_addbl(sourceinfo_t *si, int parc, char **parv)
 
     node_add(bl, node_create(), &f->blacklist);
 
+    syn_report("\002FACILITY ADDBL\002 %s to %s by %s", bl->regex, f->hostpart, get_oper_name(si));
     command_success_nodata(si, "Added blacklist \"%s\" for %s", bl->regex, f->hostpart);
 
     save_facilities();
@@ -657,6 +674,7 @@ void syn_cmd_facility_rmbl(sourceinfo_t *si, int parc, char **parv)
         node_del(n, &f->blacklist);
         node_free(n);
 
+        syn_report("\002FACILITY RMBL\002 %s from %s by %s", parv[1], f->hostpart, get_oper_name(si));
         command_success_nodata(si, "Removed blacklist \"%s\" from %s", parv[1], f->hostpart);
     }
 
