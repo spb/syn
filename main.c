@@ -130,3 +130,18 @@ void syn_report(char *fmt, ...)
 
     msg(syn->nick, syn_config.channel, "%s", buf);
 }
+
+void syn_respond(sourceinfo_t *si, const char *fmt, ...)
+{
+    va_list ap;
+    char buf[BUFSIZE];
+
+    va_start(ap, fmt);
+    vsnprintf(buf, BUFSIZE, fmt, ap);
+    va_end(ap);
+
+    if (si->c)
+        notice_channel_sts(si->service->me, si->c, buf);
+    else
+        notice_user_sts(si->service->me, si->su, buf);
+}
