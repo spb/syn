@@ -423,15 +423,15 @@ void syn_cmd_facility(sourceinfo_t *si, int parc, char **parv)
 
     if (!cmd)
     {
-        syn_respond(si, STR_INSUFFICIENT_PARAMS, "FACILITY");
-        syn_respond(si, "Syntax: FACILITY LIST|ADD|DEL|SET|ADDBL|RMBL [parameters]");
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "FACILITY");
+        command_fail(si, fault_needmoreparams, "Syntax: FACILITY LIST|ADD|DEL|SET|ADDBL|RMBL [parameters]");
         return;
     }
 
     c = command_find(&syn_facility_cmds, cmd);
     if (c == NULL)
     {
-        syn_respond(si, "Invalid command. Possible commands are LIST ADD DEL SET ADDBL RMBL");
+        command_fail(si, fault_badparams, "Invalid command. Possible commands are LIST ADD DEL SET ADDBL RMBL");
         return;
     }
 
@@ -452,21 +452,21 @@ void syn_cmd_facility_list(sourceinfo_t *si, int parc, char **parv)
         if (match && 0 != strncmp(match, f->hostpart, strlen(match)))
             continue;
 
-        syn_respond(si, "[%d] %s (cloaking %s, %s, throttle %d/%d)",
+        command_success_nodata(si, "[%d] %s (cloaking %s, %s, throttle %d/%d)",
                 ++count, f->hostpart, string_from_cloak_type(f->cloaking),
                 (f->blocked > 0 ? "blocked" : (f->blocked < 0 ? "unblocked" : "not blocked")),
                 f->throttle[0], f->throttle[1]);
     }
 
-    syn_respond(si, "%d facilit%s configured", count, count == 1 ? "y" : "ies");
+    command_success_nodata(si, "%d facilit%s configured", count, count == 1 ? "y" : "ies");
 }
 
 void syn_cmd_facility_add(sourceinfo_t *si, int parc, char **parv)
 {
     if (parc < 1)
     {
-        syn_respond(si, STR_INSUFFICIENT_PARAMS, "FACILITY ADD");
-        syn_respond(si, "Syntax: FACILITY ADD <hostpart> [cloaktype]");
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "FACILITY ADD");
+        command_fail(si, fault_needmoreparams, "Syntax: FACILITY ADD <hostpart> [cloaktype]");
         return;
     }
 
@@ -481,7 +481,7 @@ void syn_cmd_facility_add(sourceinfo_t *si, int parc, char **parv)
 
     syn_report("\002FACILITY ADD\002 %s by %s", f->hostpart, get_oper_name(si));
 
-    syn_respond(si, "Added facility %s", f->hostpart);
+    command_success_nodata(si, "Added facility %s", f->hostpart);
 
     save_facilities();
 }
@@ -490,8 +490,8 @@ void syn_cmd_facility_del(sourceinfo_t *si, int parc, char **parv)
 {
     if (parc < 1)
     {
-        syn_respond(si, STR_INSUFFICIENT_PARAMS, "FACILITY DEL");
-        syn_respond(si, "Syntax: FACILITY DEL <hostpart>");
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "FACILITY DEL");
+        command_fail(si, fault_needmoreparams, "Syntax: FACILITY DEL <hostpart>");
         return;
     }
 
@@ -499,7 +499,7 @@ void syn_cmd_facility_del(sourceinfo_t *si, int parc, char **parv)
 
     if (f == NULL)
     {
-        syn_respond(si, "No such facility %s was found.", parv[0]);
+        command_fail(si, fault_badparams, "No such facility %s was found.", parv[0]);
         return;
     }
 
@@ -508,7 +508,7 @@ void syn_cmd_facility_del(sourceinfo_t *si, int parc, char **parv)
 
     syn_report("\002FACILITY DEL\002 %s by %s", parv[0], get_oper_name(si));
 
-    syn_respond(si, "Facility %s deleted", parv[0]);
+    command_success_nodata(si, "Facility %s deleted", parv[0]);
 
     save_facilities();
 }
@@ -519,15 +519,15 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
 {
     if (parc < 3)
     {
-        syn_respond(si, STR_INSUFFICIENT_PARAMS, "FACILITY SET");
-        syn_respond(si, "Syntax: FACILITY SET <hostpart> <setting> [arguments]");
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "FACILITY SET");
+        command_fail(si, fault_needmoreparams, "Syntax: FACILITY SET <hostpart> <setting> [arguments]");
         return;
     }
 
     facility_t *f = mowgli_dictionary_retrieve(facilities, parv[0]);
     if (f== NULL)
     {
-        syn_respond(si, "No such facility %s", parv[0]);
+        command_fail(si, fault_badparams, "No such facility %s", parv[0]);
         return;
     }
 
@@ -538,7 +538,7 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
 
         syn_report("\002FACILITY SET\002 cloaking->%s for %s by %s",
                 string_from_cloak_type(cloak), f->hostpart, get_oper_name(si));
-        syn_respond(si, "Cloaking method for %s set to %s", f->hostpart, string_from_cloak_type(cloak));
+        command_success_nodata(si, "Cloaking method for %s set to %s", f->hostpart, string_from_cloak_type(cloak));
         return;
     }
 
@@ -551,7 +551,7 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
 
         syn_report("\002FACILITY SET\002 blocked->%d for %s by %s",
                 f->blocked, f->hostpart, get_oper_name(si));
-        syn_respond(si, "Blocked for %s was set to %d", f->hostpart, f->blocked);
+        command_success_nodata(si, "Blocked for %s was set to %d", f->hostpart, f->blocked);
         return;
     }
 
@@ -563,8 +563,8 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
 
         if (p == NULL)
         {
-            syn_respond(si, STR_INVALID_PARAMS, "FACILITY SET THROTTLE");
-            syn_respond(si, "Syntax: FACILITY SET <name> THROTTLE n,m");
+            command_fail(si, fault_badparams, STR_INVALID_PARAMS, "FACILITY SET THROTTLE");
+            command_fail(si, fault_badparams, "Syntax: FACILITY SET <name> THROTTLE n,m");
             return;
         }
         *p++ = '\0';
@@ -574,7 +574,7 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
 
         syn_report("\002FACILITY SET\002 throttle->%d/%d for %s by %s",
                 f->throttle[0], f->throttle[1], f->hostpart, get_oper_name(si));
-        syn_respond(si, "Throttle for %s was set to %d seconds, burst %d",
+        command_success_nodata(si, "Throttle for %s was set to %d seconds, burst %d",
                 f->hostpart, f->throttle[0], f->throttle[1]);
         return;
     }
@@ -591,7 +591,7 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
 
         syn_report("\002FACILITY SET\002 block message->%s for %s by %s",
                 f->blockmessage, f->hostpart, get_oper_name(si));
-        syn_respond(si, "Block message for %s was set to %s", f->hostpart, f->blockmessage);
+        command_success_nodata(si, "Block message for %s was set to %s", f->hostpart, f->blockmessage);
         return;
     }
 
@@ -607,11 +607,11 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
 
         syn_report("\002FACILITY SET\002 throttle message->%s for %s by %s",
                 f->throttlemessage, f->hostpart, get_oper_name(si));
-        syn_respond(si, "Throttle message for %s was set to %s", f->hostpart, f->throttlemessage);
+        command_success_nodata(si, "Throttle message for %s was set to %s", f->hostpart, f->throttlemessage);
         return;
     }
 
-    syn_respond(si, "Unknown setting name");
+    command_fail(si, fault_badparams, "Unknown setting name");
 
     save_facilities();
 }
@@ -622,15 +622,15 @@ void syn_cmd_facility_addbl(sourceinfo_t *si, int parc, char **parv)
 {
     if (parc < 2)
     {
-        syn_respond(si, STR_INSUFFICIENT_PARAMS, "FACILITY ADDBL");
-        syn_respond(si, "Syntax: FACILITY ADDBL <hostpart> <regex>");
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "FACILITY ADDBL");
+        command_fail(si, fault_needmoreparams, "Syntax: FACILITY ADDBL <hostpart> <regex>");
         return;
     }
 
     facility_t *f = mowgli_dictionary_retrieve(facilities, parv[0]);
     if (f== NULL)
     {
-        syn_respond(si, "No such facility %s", parv[0]);
+        command_fail(si, fault_badparams, "No such facility %s", parv[0]);
         return;
     }
 
@@ -641,7 +641,7 @@ void syn_cmd_facility_addbl(sourceinfo_t *si, int parc, char **parv)
     node_add(bl, node_create(), &f->blacklist);
 
     syn_report("\002FACILITY ADDBL\002 %s to %s by %s", bl->regex, f->hostpart, get_oper_name(si));
-    syn_respond(si, "Added blacklist \"%s\" for %s", bl->regex, f->hostpart);
+    command_success_nodata(si, "Added blacklist \"%s\" for %s", bl->regex, f->hostpart);
 
     save_facilities();
 }
@@ -652,15 +652,15 @@ void syn_cmd_facility_rmbl(sourceinfo_t *si, int parc, char **parv)
 {
     if (parc < 2)
     {
-        syn_respond(si, STR_INSUFFICIENT_PARAMS, "FACILITY RMBL");
-        syn_respond(si, "Syntax: FACILITY RMBL <hostpart> <regex>");
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "FACILITY RMBL");
+        command_fail(si, fault_needmoreparams, "Syntax: FACILITY RMBL <hostpart> <regex>");
         return;
     }
 
     facility_t *f = mowgli_dictionary_retrieve(facilities, parv[0]);
     if (f== NULL)
     {
-        syn_respond(si, "No such facility %s", parv[0]);
+        command_fail(si, fault_badparams, "No such facility %s", parv[0]);
         return;
     }
 
@@ -680,7 +680,7 @@ void syn_cmd_facility_rmbl(sourceinfo_t *si, int parc, char **parv)
         node_free(n);
 
         syn_report("\002FACILITY RMBL\002 %s from %s by %s", parv[1], f->hostpart, get_oper_name(si));
-        syn_respond(si, "Removed blacklist \"%s\" from %s", parv[1], f->hostpart);
+        command_success_nodata(si, "Removed blacklist \"%s\" from %s", parv[1], f->hostpart);
     }
 
     save_facilities();
@@ -690,34 +690,34 @@ void syn_cmd_facility_show(sourceinfo_t *si, int parc, char **parv)
 {
     if (parc < 1)
     {
-        syn_respond(si, STR_INSUFFICIENT_PARAMS, "FACILITY SHOW");
-        syn_respond(si, "Syntax: FACILITY SHOW <hostpart>");
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "FACILITY SHOW");
+        command_fail(si, fault_needmoreparams, "Syntax: FACILITY SHOW <hostpart>");
         return;
     }
 
     facility_t *f = mowgli_dictionary_retrieve(facilities, parv[0]);
     if (f== NULL)
     {
-        syn_respond(si, "No such facility %s", parv[0]);
+        command_fail(si, fault_badparams, "No such facility %s", parv[0]);
         return;
     }
 
-    syn_respond(si, "Facility %s:", f->hostpart);
-    syn_respond(si, "  cloaking method: %s", string_from_cloak_type(f->cloaking));
-    syn_respond(si, "  %s, block message \"%s\"",
+    command_success_nodata(si, "Facility %s:", f->hostpart);
+    command_success_nodata(si, "  cloaking method: %s", string_from_cloak_type(f->cloaking));
+    command_success_nodata(si, "  %s, block message \"%s\"",
             f->blocked > 0 ? "blocked" : ( f->blocked < 0 ? "unblocked" : "not blocked"),
             f->blockmessage);
-    syn_respond(si, "  Throttle rate %d/%d, throttle message \"%s\"",
+    command_success_nodata(si, "  Throttle rate %d/%d, throttle message \"%s\"",
             f->throttle[0], f->throttle[1], f->throttlemessage);
 
-    syn_respond(si, "Blacklist:");
+    command_success_nodata(si, "Blacklist:");
 
     int count = 0;
     node_t *n;
     LIST_FOREACH(n, f->blacklist.head)
     {
         bl_entry_t *bl = n->data;
-        syn_respond(si, "[%d] %s", ++count, bl->regex);
+        command_success_nodata(si, "[%d] %s", ++count, bl->regex);
     }
-    syn_respond(si, "%d blacklist entries for %s", count, f->hostpart);
+    command_success_nodata(si, "%d blacklist entries for %s", count, f->hostpart);
 }

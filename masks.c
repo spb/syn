@@ -194,16 +194,16 @@ void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv)
 
     if (args == NULL)
     {
-        syn_respond(si, STR_INSUFFICIENT_PARAMS, "ADDMASK");
-        syn_respond(si, "Syntax: ADDMASK /<regex>/[i] <type>");
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "ADDMASK");
+        command_fail(si, fault_needmoreparams, "Syntax: ADDMASK /<regex>/[i] <type>");
         return;
     }
 
     pattern = regex_extract(args, &args, &flags);
     if (pattern == NULL)
     {
-        syn_respond(si, STR_INVALID_PARAMS, "ADDMASK");
-        syn_respond(si, "Syntax: ADDMASK /<regex>/[i] <type>");
+        command_fail(si, fault_badparams, STR_INVALID_PARAMS, "ADDMASK");
+        command_fail(si, fault_badparams, "Syntax: ADDMASK /<regex>/[i] <type>");
         return;
     }
 
@@ -211,15 +211,15 @@ void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv)
 
     if (*stype == '\0')
     {
-        syn_respond(si, STR_INSUFFICIENT_PARAMS, "ADDMASK");
-        syn_respond(si, "Syntax: ADDMASK /<regex>/[i] <type>");
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "ADDMASK");
+        command_fail(si, fault_needmoreparams, "Syntax: ADDMASK /<regex>/[i] <type>");
         return;
     }
 
     type = mask_type_from_string(stype);
     if (type == mask_unknown)
     {
-        syn_respond(si, "Invalid mask type \2%s\2.", stype);
+        command_fail(si, fault_badparams, "Invalid mask type \2%s\2.", stype);
         return;
     }
 
@@ -236,7 +236,7 @@ void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv)
 
         if (0 == strcmp(m->regex, pattern))
         {
-            syn_respond(si, "\2%s\2 was already added (%s); not re-adding", pattern, string_from_mask_type(m->type));
+            command_fail(si, fault_nochange, "\2%s\2 was already added (%s); not re-adding", pattern, string_from_mask_type(m->type));
             return;
         }
     }
@@ -244,7 +244,7 @@ void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv)
     atheme_regex_t *regex = regex_create(pattern, flags);
     if (regex == NULL)
     {
-        syn_respond(si, "The provided regex \2%s\2 is invalid.", pattern);
+        command_fail(si, fault_badparams, "The provided regex \2%s\2 is invalid.", pattern);
         return;
     }
 
@@ -262,7 +262,7 @@ void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv)
 
     syn_report("\002ADDMASK\002 %s (%s) by %s, expires %s",
             pattern, stype, get_oper_name(si), syn_format_expiry(newmask->expires));
-    syn_respond(si, "Added \2%s\2 to %s mask list, expiring %s.",
+    command_success_nodata(si, "Added \2%s\2 to %s mask list, expiring %s.",
                             pattern, stype, syn_format_expiry(newmask->expires));
 }
 
@@ -272,8 +272,8 @@ void syn_cmd_delmask(sourceinfo_t *si, int parc, char **parv)
 
     if (!args)
     {
-        syn_respond(si, STR_INSUFFICIENT_PARAMS, "DELMASK");
-        syn_respond(si, "Syntax: DELMASK /<regex>/");
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "DELMASK");
+        command_fail(si, fault_needmoreparams, "Syntax: DELMASK /<regex>/");
         return;
     }
 
@@ -282,8 +282,8 @@ void syn_cmd_delmask(sourceinfo_t *si, int parc, char **parv)
 
     if (!pattern)
     {
-        syn_respond(si, STR_INVALID_PARAMS, "DELMASK");
-        syn_respond(si, "Syntax: DELMASK /<regex>/");
+        command_fail(si, fault_badparams, STR_INVALID_PARAMS, "DELMASK");
+        command_fail(si, fault_needmoreparams, "Syntax: DELMASK /<regex>/");
         return;
     }
 
@@ -294,7 +294,7 @@ void syn_cmd_delmask(sourceinfo_t *si, int parc, char **parv)
         if (0 == strcmp(pattern, m->regex))
         {
             syn_report("\002DELMASK\002 %s (%s) by %s", pattern, string_from_mask_type(m->type), get_oper_name(si));
-            syn_respond(si, "Removing \2%s\2 from %s mask list", pattern, string_from_mask_type(m->type));
+            command_success_nodata(si, "Removing \2%s\2 from %s mask list", pattern, string_from_mask_type(m->type));
             regex_destroy(m->re);
             free(m->regex);
             free(m);
@@ -303,7 +303,7 @@ void syn_cmd_delmask(sourceinfo_t *si, int parc, char **parv)
         }
     }
 
-    syn_respond(si, "\2%s\2 was not found in any mask list", pattern);
+    command_fail(si, fault_nochange, "\2%s\2 was not found in any mask list", pattern);
 }
 
 void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv)
@@ -312,8 +312,8 @@ void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv)
 
     if (!args)
     {
-        syn_respond(si, STR_INSUFFICIENT_PARAMS, "SETMASK");
-        syn_respond(si, "Syntax: SETMASK /<regex>/");
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "SETMASK");
+        command_fail(si, fault_needmoreparams, "Syntax: SETMASK /<regex>/");
         return;
     }
 
@@ -322,8 +322,8 @@ void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv)
 
     if (!pattern)
     {
-        syn_respond(si, STR_INVALID_PARAMS, "SETMASK");
-        syn_respond(si, "Syntax: SETMASK /<regex>/");
+        command_fail(si, fault_badparams, STR_INVALID_PARAMS, "SETMASK");
+        command_fail(si, fault_needmoreparams, "Syntax: SETMASK /<regex>/");
         return;
     }
 
@@ -339,7 +339,7 @@ void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv)
 
     if (!m)
     {
-        syn_respond(si, "\2%s\2 was not found in any mask list", pattern);
+        command_fail(si, fault_nochange, "\2%s\2 was not found in any mask list", pattern);
         return;
     }
 
@@ -349,7 +349,7 @@ void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv)
     {
         m->type = t;
         syn_report("\002SETMASK\002 %s type->%s by %s", pattern, nextarg, get_oper_name(si));
-        syn_respond(si, "Changed type of mask \2%s\2 to %s", pattern, nextarg);
+        command_success_nodata(si, "Changed type of mask \2%s\2 to %s", pattern, nextarg);
         return;
     }
 
@@ -360,19 +360,19 @@ void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv)
         {
             m->expires = CURRTIME + duration * 60;
             syn_report("\002SETMASK\002 %s duration->%d by %s", pattern, duration, get_oper_name(si));
-            syn_respond(si, "Changed expiry of mask \2%s\2 to %ld minutes", pattern, duration);
+            command_success_nodata(si, "Changed expiry of mask \2%s\2 to %ld minutes", pattern, duration);
         }
         else
         {
             m->expires = 0;
             syn_report("\002SETMASK\002 %s expiry->off by %s", pattern, get_oper_name(si));
-            syn_respond(si, "Expiry disabled for mask \2%s\2.", pattern);
+            command_success_nodata(si, "Expiry disabled for mask \2%s\2.", pattern);
         }
         return;
     }
 
-    syn_respond(si, STR_INVALID_PARAMS, "SETMASK");
-    syn_respond(si, "Syntax: SETMASK /<regex>/ <type>");
+    command_fail(si, fault_badparams, STR_INVALID_PARAMS, "SETMASK");
+    command_fail(si, fault_badparams, "Syntax: SETMASK /<regex>/ <type>");
 }
 
 void syn_cmd_listmask(sourceinfo_t *si, int parc, char **parv)
@@ -394,11 +394,11 @@ void syn_cmd_listmask(sourceinfo_t *si, int parc, char **parv)
         if (t != mask_unknown && t != m->type)
             continue;
 
-        syn_respond(si, "\2%s\2 (%s), expires %s",
+        command_success_nodata(si, "\2%s\2 (%s), expires %s",
                 m->regex, string_from_mask_type(m->type), syn_format_expiry(m->expires));
 
         ++count;
     }
 
-    syn_respond(si, "%d masks found", count);
+    command_success_nodata(si, "%d masks found", count);
 }
