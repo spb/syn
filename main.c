@@ -55,6 +55,35 @@ void _moddeinit()
     service_delete(syn);
 }
 
+static void syn_cmd_success_nodata(sourceinfo_t *si, const char *text)
+{
+    if (si->c)
+        notice_channel_sts(si->service->me, si->c, text);
+    else
+        notice_user_sts(si->service->me, si->su, text);
+}
+
+
+static void syn_cmd_success_string(sourceinfo_t *si, const char *string, const char *text)
+{
+    if (si->c)
+        notice_channel_sts(si->service->me, si->c, text);
+    else
+        notice_user_sts(si->service->me, si->su, text);
+}
+
+
+static void syn_cmd_fail(sourceinfo_t *si, faultcode_t fault, const char *text)
+{
+    if (si->c)
+        notice_channel_sts(si->service->me, si->c, text);
+    else
+        notice_user_sts(si->service->me, si->su, text);
+}
+
+struct sourceinfo_vtable syn_si_vtable = { "syn", syn_cmd_fail, syn_cmd_success_nodata, syn_cmd_success_string };
+
+
 static void syn_handler(sourceinfo_t *si, int parc, char *parv[])
 {
     char *cmd;
@@ -99,6 +128,8 @@ static void syn_handler(sourceinfo_t *si, int parc, char *parv[])
         handle_ctcp_common(si, cmd, text);
         return;
     }
+
+    si->v = &syn_si_vtable;
 
     /* take the command through the hash table */
     command_exec_split(si->service, si, cmd, text, &syn_cmdtree);
