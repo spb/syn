@@ -365,6 +365,11 @@ void facility_newuser(void *v)
         syn_kill(u, "%s", blockmessage);
     }
 
+    char *slash = strchr(u->vhost, '/');
+    if (slash != NULL && 0 != strncmp(u->vhost, "unaffiliated", slash - u->vhost))
+        return;
+
+    strncpy(u->vhost, u->host, HOSTLEN);
     switch (cloak)
     {
         case facility_cloak_none:
@@ -373,10 +378,10 @@ void facility_newuser(void *v)
 
         case facility_cloak_hex_ident:
             {
-                char *ipstart = strstr(u->host, "session");
+                char *ipstart = strstr(u->vhost, "session");
                 if (ipstart == NULL)
                 {
-                    syn_debug(2, "Hex IP cloaking used for %s, but I couldn't find a session marker in %s", u->nick, u->host);
+                    syn_debug(2, "Hex IP cloaking used for %s, but I couldn't find a session marker in %s", u->nick, u->vhost);
                     break;
                 }
                 const char *ident = u->user;
@@ -386,10 +391,10 @@ void facility_newuser(void *v)
 
                 if (ip)
                 {
-                    strncpy(ipstart, "ip.", u->host + HOSTLEN - ipstart);
+                    strncpy(ipstart, "ip.", u->vhost + HOSTLEN - ipstart);
                     ipstart += 3;
-                    strncpy(ipstart, ip, u->host + HOSTLEN - ipstart);
-                    sethost_sts(syn->me, u, u->host);
+                    strncpy(ipstart, ip, u->vhost + HOSTLEN - ipstart);
+                    sethost_sts(syn->me, u, u->vhost);
                     break;
                 }
                 // If we couldn't decode an IP, fall through...
@@ -398,14 +403,14 @@ void facility_newuser(void *v)
             }
         case facility_cloak_random:
             {
-                char *randstart = strstr(u->host, "session");
+                char *randstart = strstr(u->vhost, "session");
                 if (randstart == NULL)
                 {
-                    syn_debug(2, "Random cloaking used for %s, but I couldn't find a session marker in %s", u->nick, u->host);
+                    syn_debug(2, "Random cloaking used for %s, but I couldn't find a session marker in %s", u->nick, u->vhost);
                     break;
                 }
-                strncpy(randstart, get_random_host_part(), u->host + HOSTLEN - randstart);
-                sethost_sts(syn->me, u, u->host);
+                strncpy(randstart, get_random_host_part(), u->vhost + HOSTLEN - randstart);
+                sethost_sts(syn->me, u, u->vhost);
                 break;
             }
     }
