@@ -37,8 +37,12 @@ typedef struct
     char *regex;
     atheme_regex_t *re;
     int reflags;
+
     mask_type type;
+
     time_t expires;
+    time_t added;
+    char setter[NICKLEN*2+2];
 } mask_t;
 
 list_t masks;
@@ -258,6 +262,9 @@ void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv)
     else
         newmask->expires = 0;
 
+    newmask->added = CURRTIME;
+    strncpy(newmask->setter, get_oper_name(si), sizeof(newmask->setter));
+
     node_add(newmask, node_create(), &masks);
 
     syn_report("\002ADDMASK\002 %s (%s) by %s, expires %s",
@@ -394,8 +401,9 @@ void syn_cmd_listmask(sourceinfo_t *si, int parc, char **parv)
         if (t != mask_unknown && t != m->type)
             continue;
 
-        command_success_nodata(si, "\2%s\2 (%s), expires %s",
-                m->regex, string_from_mask_type(m->type), syn_format_expiry(m->expires));
+        command_success_nodata(si, "\2%s\2 (%s), set by %s on %s, expires %s",
+                m->regex, string_from_mask_type(m->type), m->setter, 
+                syn_format_expiry(m->added), syn_format_expiry(m->expires));
 
         ++count;
     }
