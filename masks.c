@@ -93,6 +93,71 @@ static void check_expiry(void *v)
     }
 }
 
+static void save_maskdb()
+{
+    node_t *n;
+    FILE *f = fopen(DATADIR "/masks.db", "w");
+    if (!f)
+    {
+        slog(LG_ERROR, "Couldn't open masks.db for writing: %s", strerror(errno));
+        return;
+    }
+
+    LIST_FOREACH(n, masks.head)
+    {
+        mask_t *m = n->data;
+
+        fprintf(f, "/%s/%s %d %s %lu %lu\n",
+                m->regex, m->reflags & AREGEX_ICASE ? "i" : "",
+                m->type, m->setter, m->added, m->expires);
+    }
+    fclose(f);
+}
+
+static void load_maskdb()
+{
+    FILE *f = fopen(DATADIR "/masks.db", "r");
+    if (!f)
+    {
+        slog(LG_DEBUG, "Couldn't open masks db for reading: %s", strerror(errno));
+        return;
+    }
+
+    char line[BUFSIZE*2];
+    while(fgets(line, sizeof(line), f))
+    {
+        char *args = line;
+        int flags = 0;
+        char *regex = regex_extract(args, &args, &flags);
+
+        atheme_regex_t *re= regex_create(regex, flags);
+
+        if (!re || !regex)
+        {
+            slog(LG_DEBUG, "Invalid entry %s in masks db", line);
+            continue;
+        }
+
+        char setter[BUFSIZE*2];
+        int type;
+        time_t added, expires;
+
+        sscanf(args, "%d %s %lu %lu", &type, setter, &added, &expires);
+
+        mask_t *mask = malloc(sizeof(mask_t));
+        mask->regex = sstrdup(regex);
+        mask->reflags = flags;
+        mask->re = re;
+        strncpy(mask->setter, setter, sizeof(mask->setter));
+        mask->added = added;
+        mask->expires = expires;
+        mask->type = type;
+
+        node_add(mask, node_create(), &masks);
+    }
+
+    fclose(f);
+}
 
 void _modinit(module_t *m)
 {
@@ -114,10 +179,14 @@ void _modinit(module_t *m)
     hook_add_hook("user_add", masks_newuser);
 
     event_add("masks_check_expiry", check_expiry, NULL, 60);
+
+    load_maskdb();
 }
 
 void _moddeinit()
 {
+    save_maskdb();
+
     command_delete(&syn_addmask, syn_cmdtree);
     command_delete(&syn_delmask, syn_cmdtree);
     command_delete(&syn_setmask, syn_cmdtree);
