@@ -100,6 +100,9 @@ typedef struct
 
 mowgli_dictionary_t *facilities;
 
+unsigned int block_report_interval = 60;
+time_t last_block_report = 0;
+
 BlockHeap *facility_heap, *blacklist_heap;
 
 void free_facility(mowgli_dictionary_elem_t *e, void *v)
@@ -264,12 +267,20 @@ void _modinit(module_t *m)
     blacklist_heap = BlockHeapCreate(sizeof(bl_entry_t), HEAP_USER);
     facilities = mowgli_dictionary_create(strcasecmp);
 
+    add_uint_conf_item("FACILITY_REPORT_RATE", syn_conftable, &block_report_interval, 0, 3600);
+
     load_facilities();
 }
 
 void _moddeinit()
 {
     save_facilities();
+
+    del_conf_item("FACILITY_REPORT_RATE", syn_conftable);
+
+    mowgli_dictionary_destroy(facilities, free_facility, NULL);
+    BlockHeapDestroy(facility_heap);
+    BlockHeapDestroy(blacklist_heap);
 
     help_delentry(syn_helptree, "FACILITY");
     help_delentry(syn_helptree, "FACILITY ADD");
@@ -278,11 +289,10 @@ void _moddeinit()
     help_delentry(syn_helptree, "FACILITY ADDBL");
     help_delentry(syn_helptree, "FACILITY RMBL");
     help_delentry(syn_helptree, "FACILITY LIST");
-    hook_del_hook("user_add", facility_newuser);
+
     command_delete(&syn_facility, syn_cmdtree);
-    mowgli_dictionary_destroy(facilities, free_facility, NULL);
-    BlockHeapDestroy(facility_heap);
-    BlockHeapDestroy(blacklist_heap);
+
+    hook_del_hook("user_add", facility_newuser);
 }
 
 void facility_newuser(void *v)
@@ -358,25 +368,37 @@ void facility_newuser(void *v)
 
     if (throttled)
     {
-        syn_report("Killing user %s due to throttle [%d,%d] on facility %s",
-                u->nick, throttling_facility->throttle[0], throttling_facility->throttle[1],
-                throttling_facility->hostpart);
+        if (last_block_report + block_report_interval < CURRTIME)
+        {
+            last_block_report = CURRTIME;
+            syn_report("Killing user %s due to throttle [%d,%d] on facility %s",
+                    u->nick, throttling_facility->throttle[0], throttling_facility->throttle[1],
+                    throttling_facility->hostpart);
+        }
         syn_kill2(u, "Throttled", "%s", throttlemessage);
         return;
     }
 
     if (blocked)
     {
-        syn_report("Killing user %s; blocked by facility %s", 
-                u->nick, blocking_facility ? blocking_facility->hostpart : "(unknown)");
+        if (last_block_report + block_report_interval < CURRTIME)
+        {
+            last_block_report = CURRTIME;
+            syn_report("Killing user %s; blocked by facility %s", 
+                    u->nick, blocking_facility ? blocking_facility->hostpart : "(unknown)");
+        }
         syn_kill2(u, "Facility Blocked", "%s", blockmessage);
         return;
     }
 
     if (blacklisted)
     {
-        syn_report("Killing user %s; blacklisted in facility %s (%s)",
-                u->nick, blocking_facility->hostpart, blocking_regex);
+        if (last_block_report + block_report_interval < CURRTIME)
+        {
+            last_block_report = CURRTIME;
+            syn_report("Killing user %s; blacklisted in facility %s (%s)",
+                    u->nick, blocking_facility->hostpart, blocking_regex);
+        }
         syn_kill(u, "%s", blockmessage);
     }
 
