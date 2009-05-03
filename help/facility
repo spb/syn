@@ -41,7 +41,7 @@ specific block message so far encountered is used.
 
 If the client is allowed to connect, then the cloaking
 setting is used to determine whether to modify the client's
-visible host name. Again the most specific configured value
+visible host name. Again the most specific defined value
 is used. Possible values are:
 
  - none. Leave the client's host alone.
@@ -52,5 +52,8 @@ is used. Possible values are:
    marker in the user's host is replaced by 
    'ip.<decoded ip>'. If the ident cannot be decoded this
    way, it falls back to the random method.
+
+If no matching facility has a defined cloaking method, then
+the default is none.
 
 Valid subcommands are: FACILITY <LIST|ADD|DEL|SET|ADDBL|RMBL|SHOW>
