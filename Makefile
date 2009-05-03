@@ -19,6 +19,8 @@ clean:
 install: $(MODULES)
 	install -d $(PREFIX)/modules/syn
 	install -t $(PREFIX)/modules/syn $(MODULES)
+	install -d $(PREFIX)/help/syn
+	install -t $(PREFIX)/help/syn help/*
 
 
 

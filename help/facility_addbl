@@ -1,0 +1,13 @@
+Help for FACILITY ADDBL:
+
+This adds a blacklist entry to a facility. Clients that
+match a given facility are checked against all blacklist
+entries for that facility, and any that match are denied.
+
+The regex is a PCRE expression, matched against
+"<nick>!<user>@<host> <gecos>".
+
+Syntax: /msg &nick& FACILITY ADDBL <hostpart> <regex>
+
+Examples:
+    /msg &nick& FACILITY ADDBL gateway/web !~?576a466a@

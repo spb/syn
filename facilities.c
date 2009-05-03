@@ -252,6 +252,14 @@ void _modinit(module_t *m)
     command_add(&syn_facility_rmbl, &syn_facility_cmds);
     command_add(&syn_facility_show, &syn_facility_cmds);
 
+    help_addentry(syn_helptree, "FACILITY", "help/syn/facility", NULL);
+    help_addentry(syn_helptree, "FACILITY ADD", "help/syn/facility_add", NULL);
+    help_addentry(syn_helptree, "FACILITY DEL", "help/syn/facility_del", NULL);
+    help_addentry(syn_helptree, "FACILITY SET", "help/syn/facility_set", NULL);
+    help_addentry(syn_helptree, "FACILITY ADDBL", "help/syn/facility_addbl", NULL);
+    help_addentry(syn_helptree, "FACILITY RMBL", "help/syn/facility_rmbl", NULL);
+    help_addentry(syn_helptree, "FACILITY LIST", "help/syn/facility_list", NULL);
+
     facility_heap = BlockHeapCreate(sizeof(facility_t), HEAP_USER);
     blacklist_heap = BlockHeapCreate(sizeof(bl_entry_t), HEAP_USER);
     facilities = mowgli_dictionary_create(strcasecmp);
@@ -263,6 +271,13 @@ void _moddeinit()
 {
     save_facilities();
 
+    help_delentry(syn_helptree, "FACILITY");
+    help_delentry(syn_helptree, "FACILITY ADD");
+    help_delentry(syn_helptree, "FACILITY DEL");
+    help_delentry(syn_helptree, "FACILITY SET");
+    help_delentry(syn_helptree, "FACILITY ADDBL");
+    help_delentry(syn_helptree, "FACILITY RMBL");
+    help_delentry(syn_helptree, "FACILITY LIST");
     hook_del_hook("user_add", facility_newuser);
     command_delete(&syn_facility, syn_cmdtree);
     mowgli_dictionary_destroy(facilities, free_facility, NULL);

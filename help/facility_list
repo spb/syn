@@ -1,0 +1,6 @@
+Help for FACILITY LIST:
+
+This displays the list of currently configured facilities,
+with brief information about settings.
+
+Syntax: /msg &nick& FACILITY LIST

@@ -1,0 +1,12 @@
+Help for FACILITY RMBL:
+
+This removes a blacklist entry from a facility.
+
+See also: /msg &nick& HELP FACILITY ADDBL
+          /msg &nick& HELP FACILITY
+
+Syntax: /msg &nick& FACILITY RMBL <hostpart> <regex>
+
+Examples:
+    /msg &nick& FACILITY RMBL gateway/web !~?576a466a@
+

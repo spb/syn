@@ -1,0 +1,15 @@
+Help for FACILITY ADD:
+
+This command will add a new facility definition. The
+hostpart is a hostname prefix used to identify this gateway,
+and matched against connecting users. The optional cloaking
+argument determines the cloaking scheme used for users
+matching this gateway -- the default is undefined. See
+/msg &nick& HELP FACILITY for valid cloaking values.
+
+Syntax: FACILITY ADD <hostpart> [cloaking]
+
+Examples:
+    /msg &nick& FACILITY ADD gateway/web/ajax/mibbit.com hexip
+    /msg &nick& FACILITY ADD gateway/tor random
+    /msg &nick& FACILITY ADD gateway/web

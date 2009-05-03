@@ -1,0 +1,9 @@
+Help for FACILITY DEL
+
+This permanently removes a facility definition, and all
+information associated with it. Use with caution.
+
+Syntax: FACILITY DEL <hostpart>
+
+Examples:
+    /msg &nick& FACILITY DEL gateway/web/cgiirc/defunct.site

@@ -1,0 +1,21 @@
+Help for FACILITY SET:
+
+Modifies a facility definition.
+
+Possible settings are:
+
+ - cloaking
+ - blocked
+ - throttle
+ - blockmessage
+ - throttlemessage
+
+See /msg &nick& HELP FACILITY for the meaning of each
+setting.
+
+Syntax: /msg &nick& FACILITY SET <hostpart> <setting> <value>
+
+Examples:
+    /msg &nick& FACILITY SET gateway/web/ajax/mibbit.com blocked 1
+    /msg &nick& FACILITY SET gateway/tor throttle 5,3
+    /msg &nick& FACILITY SET gateway/web/cgiirc/site.com cloaking hexip
