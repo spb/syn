@@ -401,9 +401,11 @@ void syn_cmd_listmask(sourceinfo_t *si, int parc, char **parv)
         if (t != mask_unknown && t != m->type)
             continue;
 
+        char buf[BUFSIZE];
+        strncpy(buf, syn_format_expiry(m->added), BUFSIZE);
         command_success_nodata(si, "\2%s\2 (%s), set by %s on %s, expires %s",
                 m->regex, string_from_mask_type(m->type), m->setter, 
-                syn_format_expiry(m->added), syn_format_expiry(m->expires));
+                buf, syn_format_expiry(m->expires));
 
         ++count;
     }
