@@ -282,7 +282,7 @@ void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv)
 
     stype = strtok(args, " ");
 
-    if (*stype == '\0')
+    if (!stype || *stype == '\0')
     {
         command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "ADDMASK");
         command_fail(si, fault_needmoreparams, "Syntax: ADDMASK /<regex>/[i] <type>");
