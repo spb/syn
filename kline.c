@@ -43,8 +43,31 @@ void _moddeinit()
     event_delete(expire_klines, NULL);
 }
 
+kline_t* _syn_find_kline(const char *user, const char *host)
+{
+    node_t *n;
+    kline_t *k;
+
+    LIST_FOREACH(n, ircd_klines.head)
+    {
+        k = (kline_t*) n->data;
+        if ((NULL == user || 0 == match(k->user, user)) &&
+            0 == match(k->host, host))
+        {
+            return k;
+        }
+    }
+    return NULL;
+}
+
 static void syn_m_kline(sourceinfo_t *si, int parc, char **parv)
 {
+    if (_syn_find_kline(parv[2], parv[3]))
+    {
+        syn_debug(3, "Duplicate K:line %s@%s", parv[2], parv[3]);
+        return;
+    }
+
     kline_t *k = BlockHeapAlloc(ircd_kline_heap);
     k->duration = atoi(parv[1]);
     k->settime = CURRTIME;
@@ -110,23 +133,6 @@ static void expire_klines(void *unused)
             BlockHeapFree(ircd_kline_heap, k);
         }
     }
-}
-
-kline_t* _syn_find_kline(const char *user, const char *host)
-{
-    node_t *n;
-    kline_t *k;
-
-    LIST_FOREACH(n, ircd_klines.head)
-    {
-        k = (kline_t*) n->data;
-        if ((NULL == user || 0 == match(k->user, user)) &&
-            0 == match(k->host, host))
-        {
-            return k;
-        }
-    }
-    return NULL;
 }
 
 static void _syn_vkline(const char *host, int duration, const char *reason, va_list ap)
