@@ -39,7 +39,7 @@ void _modinit(module_t *m)
 void _moddeinit()
 {
     hook_del_hook("user_add", gateway_newuser);
-    hook_del_hook("syn_kline_add", check_all_users);
+    hook_del_hook("syn_kline_added", check_all_users);
 }
 
 static void gateway_newuser(void *v)
