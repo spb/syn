@@ -9,6 +9,7 @@ DECLARE_MODULE_V1
         "Stephen Bennett <stephen -at- freenode.net>"
 );
 
+static void tor_kline_check(void *);
 static void tor_newuser(void*);
 
 static void syn_cmd_checktor(sourceinfo_t*, int, char**);
@@ -34,6 +35,8 @@ void _modinit(module_t *m)
 
     hook_add_event("user_add");
     hook_add_hook("user_add", tor_newuser);
+    hook_add_event("syn_kline_check");
+    hook_add_hook("syn_kline_check", tor_kline_check);
 
     event_add("update_tor_list", load_tor_list, NULL, 120);
 
@@ -60,6 +63,7 @@ void _moddeinit()
     command_delete(&syn_checktor, syn_cmdtree);
 
     hook_del_hook("user_add", tor_newuser);
+    hook_del_hook("syn_kline_check", tor_kline_check);
 
     event_delete(load_tor_list, NULL);
 }
@@ -67,18 +71,24 @@ void _moddeinit()
 static void tor_newuser(void *v)
 {
     user_t *u = v;
-    void *p;
 
     if (is_internal_client(u) || *u->ip == '\0')
         return;
 
-    p = mowgli_patricia_retrieve(torlist, u->ip);
-    if (p == NULL)
+    syn_kline_check_data_t d = { u->ip, u };
+    tor_kline_check(&d);
+}
+
+static void tor_kline_check(void *v)
+{
+    syn_kline_check_data_t *d = v;
+
+    if (NULL == mowgli_patricia_retrieve(torlist, d->ip))
         return;
 
     // IP was listed in the tor list.
-    syn_report("K:lining tor node %s (user %s)", u->ip, u->nick);
-    syn_kline(u->ip, kline_duration, kline_reason);
+    syn_report("K:lining tor node %s (user %s)", d->ip, d->u->nick);
+    syn_kline(d->ip, kline_duration, kline_reason);
 }
 
 static void load_tor_list()

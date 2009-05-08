@@ -32,6 +32,7 @@ void _modinit(module_t *m)
     hook_add_hook("user_add", gateway_newuser);
     hook_add_event("syn_kline_added");
     hook_add_hook("syn_kline_added", check_all_users);
+    hook_add_event("syn_kline_check");
 
     check_all_users(NULL);
 }
@@ -63,6 +64,13 @@ static void gateway_newuser(void *v)
             syn_kill(u, "Your reported IP [%s] is banned: %s", identhost, k->reason);
             return;
         }
+
+        // Ident not K:lined(yet); check whether it should be
+        // Note that this happens after the K:line check; if this hook adds a
+        // new kline, then we'll be called again through the syn_kline_add hook
+        syn_kline_check_data_t d = { identhost, u };
+        hook_call_event("syn_kline_check", &d);
+
     }
 
     char gecos[GECOSLEN];
@@ -87,4 +95,10 @@ static void gateway_newuser(void *v)
         syn_kill(u, "Your reported hostname [%s] is banned: %s", p, k->reason);
         return;
     }
+
+    // As above, but for gecos hostnames
+    syn_kline_check_data_t d = { gecos, u };
+    hook_call_event("syn_kline_check", &d);
+    d.ip = p;
+    hook_call_event("syn_kline_check", &d);
 }

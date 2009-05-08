@@ -49,5 +49,11 @@ inline void use_syn_kline_symbols(module_t *m)
     MODULE_USE_SYMBOL(syn_kill_or_kline, "syn/kline", "_syn_kill_or_kline");
 }
 
+typedef struct
+{
+    const char *ip;
+    user_t *u;
+} syn_kline_check_data_t;
+
 
 #endif
