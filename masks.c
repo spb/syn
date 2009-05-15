@@ -175,6 +175,8 @@ void _modinit(module_t *m)
     command_add(&syn_setmask, syn_cmdtree);
     command_add(&syn_listmask, syn_cmdtree);
 
+    hook_add_event("nick_check");
+    hook_add_hook("nick_check", masks_newuser);
     hook_add_event("user_add");
     hook_add_hook("user_add", masks_newuser);
 
@@ -193,6 +195,7 @@ void _moddeinit()
     command_delete(&syn_listmask, syn_cmdtree);
 
     hook_del_hook("user_add", masks_newuser);
+    hook_del_hook("nick_check", masks_newuser);
 
     event_delete(check_expiry, NULL);
 }
