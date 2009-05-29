@@ -325,7 +325,7 @@ void facility_newuser(void *v)
         if (f->blockmessage)
             blockmessage = f->blockmessage;
 
-        if (f->throttle[0] > 0)
+        if (f->throttle[0] > 0 && !me.bursting)
         {
             if (f->throttle_latest < CURRTIME)
                 f->throttle_latest = CURRTIME;
