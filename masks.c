@@ -392,7 +392,7 @@ void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv)
     if (!args)
     {
         command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "SETMASK");
-        command_fail(si, fault_needmoreparams, "Syntax: SETMASK /<regex>/");
+        command_fail(si, fault_needmoreparams, "Syntax: SETMASK /<regex>/ <type|~expiry>");
         return;
     }
 
@@ -402,7 +402,7 @@ void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv)
     if (!pattern)
     {
         command_fail(si, fault_badparams, STR_INVALID_PARAMS, "SETMASK");
-        command_fail(si, fault_needmoreparams, "Syntax: SETMASK /<regex>/");
+        command_fail(si, fault_needmoreparams, "Syntax: SETMASK /<regex>/ <type|~expiry>");
         return;
     }
 
@@ -423,6 +423,14 @@ void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv)
     }
 
     char *nextarg = strtok(args, " ");
+
+    if (!nextarg)
+    {
+        command_fail(si, fault_needmoreparams, STR_INSUFFICIENT_PARAMS, "SETMASK");
+        command_fail(si, fault_needmoreparams, "Syntax: SETMASK /<regex>/ <type|~expiry>");
+        return;
+    }
+
     mask_type t = mask_type_from_string(nextarg);
     if (t != mask_unknown)
     {
@@ -451,7 +459,7 @@ void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv)
     }
 
     command_fail(si, fault_badparams, STR_INVALID_PARAMS, "SETMASK");
-    command_fail(si, fault_badparams, "Syntax: SETMASK /<regex>/ <type>");
+    command_fail(si, fault_badparams, "Syntax: SETMASK /<regex>/ <type|~expiry>");
 }
 
 void syn_cmd_listmask(sourceinfo_t *si, int parc, char **parv)
