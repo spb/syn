@@ -168,7 +168,7 @@ void _modinit(module_t *m)
     lethal_mask_message = sstrdup("Banned");
 
     add_uint_conf_item("lethalmask_duration", syn_conftable, &lethal_mask_duration, 0, (unsigned int)-1);
-    add_dupstr_conf_item("lethalmaks_message", syn_conftable, &lethal_mask_message);
+    add_dupstr_conf_item("lethalmask_message", syn_conftable, &lethal_mask_message);
 
     command_add(&syn_addmask, syn_cmdtree);
     command_add(&syn_delmask, syn_cmdtree);
@@ -193,6 +193,9 @@ void _moddeinit()
     command_delete(&syn_delmask, syn_cmdtree);
     command_delete(&syn_setmask, syn_cmdtree);
     command_delete(&syn_listmask, syn_cmdtree);
+
+    del_conf_item("lethalmask_duration", syn_conftable);
+    del_conf_item("lethalmask_message", syn_conftable);
 
     hook_del_hook("user_add", masks_newuser);
     hook_del_hook("nick_check", masks_newuser);
