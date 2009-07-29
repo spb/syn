@@ -456,7 +456,8 @@ void facility_newuser(void *v)
             }
     }
 
-    syn_report2(2, "Allowed %s!%s@%s [%s]", u->nick, u->user, u->vhost, u->gecos);
+    if (dospam)
+        syn_report2(2, "Allowed %s!%s@%s [%s]", u->nick, u->user, u->vhost, u->gecos);
 }
 
 void syn_cmd_facility(sourceinfo_t *si, int parc, char **parv)
