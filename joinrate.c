@@ -276,6 +276,7 @@ static void syn_cmd_setrate(sourceinfo_t *si, int parc, char **parv)
     ce->use_custom = true;
     ce->rate[0] = r;
     ce->rate[1] = b;
+    ce->curr_rate_time = 0;
 
     syn_report("\002SETRATE\002 %s->%d/%d by %s", parv[0], r, b, get_oper_name(si));
     command_success_nodata(si, "Warning threshold for %s set to %d seconds, with a burst of %d", parv[0], r, b);
