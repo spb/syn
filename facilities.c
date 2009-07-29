@@ -307,12 +307,15 @@ void facility_newuser(void *v)
     facility_t *blocking_facility = NULL, *throttling_facility = NULL;
     char *blocking_regex = NULL;
 
+    int dospam = 0;
+
     MOWGLI_DICTIONARY_FOREACH(f, &state, facilities)
     {
         if (0 != strncasecmp(u->host, f->hostpart, strlen(f->hostpart)))
             continue;
 
         syn_debug(2, "User %s matches facility %s", u->nick, f->hostpart);
+        dospam = 1;
 
         if (f->blocked > 0)
         {
@@ -400,6 +403,7 @@ void facility_newuser(void *v)
                     u->nick, blocking_facility->hostpart, blocking_regex);
         }
         syn_kill(u, "%s", blockmessage);
+        return;
     }
 
     char *slash = strchr(u->vhost, '/');
@@ -451,6 +455,8 @@ void facility_newuser(void *v)
                 break;
             }
     }
+
+    syn_report2(2, "Allowed %s!%s@%s [%s]", u->nick, u->user, u->vhost, u->gecos);
 }
 
 void syn_cmd_facility(sourceinfo_t *si, int parc, char **parv)
