@@ -456,7 +456,7 @@ void facility_newuser(void *v)
             }
     }
 
-    if (dospam)
+    if (dospam && !me.bursting)
         syn_report2(2, "Allowed %s!%s@%s [%s]", u->nick, u->user, u->vhost, u->gecos);
 }
 
