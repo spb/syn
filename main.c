@@ -19,6 +19,7 @@ struct
 {
     char *channel;
     unsigned int debug;
+    unsigned int verbosity;
 } syn_config;
 
 void _modinit(module_t *m)
@@ -34,6 +35,7 @@ void _modinit(module_t *m)
 
     add_dupstr_conf_item("CHANNEL", &syn_conftable, &syn_config.channel);
     add_uint_conf_item("DEBUG", &syn_conftable, &syn_config.debug, 0, 15);
+    add_uint_conf_item("VERBOSE", &syn_conftable, &syn_config.verbosity, 0, 15);
 
     syn = service_add("syn", syn_handler, &syn_cmdtree, &syn_conftable);
     service_set_chanmsg(syn, true);
@@ -48,6 +50,7 @@ void _moddeinit()
 
     del_conf_item("CHANNEL", &syn_conftable);
     del_conf_item("DEBUG", &syn_conftable);
+    del_conf_item("VERBOSE", &syn_conftable);
 
     hook_del_hook("config_ready", syn_join_channel);
     hook_del_hook("server_eob", syn_join_channel);
@@ -162,9 +165,8 @@ void syn_debug(int debuglevel, char *fmt, ...)
     msg(syn->nick, syn_config.channel, "[debug%d] %s", debuglevel, buf);
 }
 
-void syn_report(char *fmt, ...)
+void syn_vreport(char *fmt, va_list ap)
 {
-    va_list ap;
     char buf[BUFSIZE];
 
     if (!syn_config.channel)
@@ -173,9 +175,27 @@ void syn_report(char *fmt, ...)
     if (!channel_find(syn_config.channel))
         return;
 
-    va_start(ap, fmt);
     vsnprintf(buf, BUFSIZE, fmt, ap);
-    va_end(ap);
 
     msg(syn->nick, syn_config.channel, "%s", buf);
 }
+
+void syn_report(char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    syn_vreport(fmt, ap);
+    va_end(ap);
+}
+
+void syn_report2(unsigned int level, char *fmt, ...)
+{
+    if (syn_config.verbosity < level)
+        return;
+
+    va_list ap;
+    va_start(ap, fmt);
+    syn_vreport(fmt, ap);
+    va_end(ap);
+}
+

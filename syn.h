@@ -7,6 +7,7 @@ list_t *syn_helptree;
 list_t *syn_conftable;
 
 void (*syn_report)(char *, ...);
+void (*syn_report2)(unsigned int, char *, ...);
 void (*syn_debug)(int, char *, ...);
 
 inline void use_syn_main_symbols(module_t *m)
@@ -15,6 +16,7 @@ inline void use_syn_main_symbols(module_t *m)
     MODULE_USE_SYMBOL(syn_helptree, "syn/main", "syn_helptree");
     MODULE_USE_SYMBOL(syn_conftable, "syn/main", "syn_conftable");
     MODULE_USE_SYMBOL(syn_report, "syn/main", "syn_report");
+    MODULE_USE_SYMBOL(syn_report2, "syn/main", "syn_report2");
     MODULE_USE_SYMBOL(syn_debug, "syn/main", "syn_debug");
     service_t **syn_tmp;
     MODULE_USE_SYMBOL(syn_tmp, "syn/main", "syn");
