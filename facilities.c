@@ -583,6 +583,8 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
         syn_report("\002FACILITY SET\002 cloaking->%s for %s by %s",
                 string_from_cloak_type(cloak), f->hostpart, get_oper_name(si));
         command_success_nodata(si, "Cloaking method for %s set to %s", f->hostpart, string_from_cloak_type(cloak));
+
+        save_facilities();
         return;
     }
 
@@ -596,6 +598,8 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
         syn_report("\002FACILITY SET\002 blocked->%d for %s by %s",
                 f->blocked, f->hostpart, get_oper_name(si));
         command_success_nodata(si, "Blocked for %s was set to %d", f->hostpart, f->blocked);
+
+        save_facilities();
         return;
     }
 
@@ -620,6 +624,8 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
                 f->throttle[0], f->throttle[1], f->hostpart, get_oper_name(si));
         command_success_nodata(si, "Throttle for %s was set to %d seconds, burst %d",
                 f->hostpart, f->throttle[0], f->throttle[1]);
+
+        save_facilities();
         return;
     }
 
@@ -636,6 +642,8 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
         syn_report("\002FACILITY SET\002 block message->%s for %s by %s",
                 f->blockmessage, f->hostpart, get_oper_name(si));
         command_success_nodata(si, "Block message for %s was set to %s", f->hostpart, f->blockmessage);
+
+        save_facilities();
         return;
     }
 
@@ -652,12 +660,12 @@ void syn_cmd_facility_set(sourceinfo_t *si, int parc, char **parv)
         syn_report("\002FACILITY SET\002 throttle message->%s for %s by %s",
                 f->throttlemessage, f->hostpart, get_oper_name(si));
         command_success_nodata(si, "Throttle message for %s was set to %s", f->hostpart, f->throttlemessage);
+
+        save_facilities();
         return;
     }
 
     command_fail(si, fault_badparams, "Unknown setting name");
-
-    save_facilities();
 }
 
 
