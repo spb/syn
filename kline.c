@@ -218,7 +218,14 @@ void _syn_kill_or_kline(user_t *victim, int duration, const char *reason, ...)
     if (victim->ip[0] == '\0')
     {
         // No IP means an auth spoofed user, probably a gateway. Kill it instead.
-        _syn_vkill(victim, reason, ap);
+        // Don't give away the oper reason, though.
+        char user_reason[BUFSIZE];
+        strncpy(user_reason, reason, sizeof(user_reason));
+        char *pipe;
+        if (0 != (pipe = strchr(user_reason, '|')))
+            *pipe = '\0';
+
+        _syn_vkill(victim, user_reason, ap);
     }
     else
     {
