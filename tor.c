@@ -83,6 +83,9 @@ static void tor_kline_check(void *v)
 {
     syn_kline_check_data_t *d = v;
 
+    if (!d->ip)
+        return;
+
     if (NULL == mowgli_patricia_retrieve(torlist, d->ip))
         return;
 
