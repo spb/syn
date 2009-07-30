@@ -18,7 +18,10 @@ clean:
 
 install: $(MODULES)
 	install -d $(PREFIX)/modules/syn
-	install -t $(PREFIX)/modules/syn $(MODULES)
+	for m in $(MODULES); do \
+	    install $${m} $(PREFIX)/modules/syn/$${m}.tmp; \
+	    mv $(PREFIX)/modules/syn/$${m}{.tmp,}; \
+	done
 	install -d $(PREFIX)/help/syn
 	install -t $(PREFIX)/help/syn help/*
 
