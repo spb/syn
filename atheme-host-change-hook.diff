@@ -1,0 +1,114 @@
+diff -r 64a28dcf87f9 include/pmodule.h
+--- a/include/pmodule.h	Sun Jul 26 15:36:00 2009 +0200
++++ b/include/pmodule.h	Sun Aug 02 19:10:30 2009 +0100
+@@ -65,6 +65,12 @@
+ E void handle_setlogin(sourceinfo_t *si, user_t *u, char *login, time_t ts);
+ E void handle_clearlogin(sourceinfo_t *si, user_t *u);
+ 
++typedef struct {
++	sourceinfo_t *si;
++	user_t *user;
++	const char *oldvhost;
++} hook_incoming_host_change_t;
++
+ #endif
+ 
+ /* vim:cinoptions=>s,e0,n0,f0,{0,}0,^0,=s,ps,t0,c3,+s,(2s,us,)20,*30,gs,hs
+diff -r 64a28dcf87f9 modules/protocol/hyperion.c
+--- a/modules/protocol/hyperion.c	Sun Jul 26 15:36:00 2009 +0200
++++ b/modules/protocol/hyperion.c	Sun Aug 02 19:10:30 2009 +0100
+@@ -922,6 +922,8 @@
+ static void m_sethost(sourceinfo_t *si, int parc, char *parv[])
+ {
+ 	user_t *u;
++	char oldvhost[HOSTLEN];
++	hook_incoming_host_change_t hdata;
+ 
+ 	/* SETHOST <nick> <newhost> */
+ 	u = user_find(parv[0]);
+@@ -929,7 +931,13 @@
+ 	if (!u)
+ 		return;
+ 
++	strlcpy(oldvhost, u->vhost, HOSTLEN);
+ 	strlcpy(u->vhost, parv[1], HOSTLEN);
++
++	hdata.si = si;
++	hdata.user = u;
++	hdata.oldvhost = oldvhost;
++	hook_call_event("incoming_host_change", &hdata);
+ }
+ 
+ static void m_setident(sourceinfo_t *si, int parc, char *parv[])
+@@ -970,8 +978,12 @@
+ static void m_signon(sourceinfo_t *si, int parc, char *parv[])
+ {
+ 	char *nick_parv[2];
++	char oldvhost[HOSTLEN];
++	hook_incoming_host_change_t hdata;
+ 
+ 	slog(LG_DEBUG, "m_signon(): signon %s -> %s!%s@%s (login %s)", si->su->nick, parv[1], parv[2], parv[3], parv[0]);
++
++	strlcpy(oldvhost, si->su->vhost, HOSTLEN);
+ 
+ 	strlcpy(si->su->user, parv[2], USERLEN);
+ 	strlcpy(si->su->vhost, parv[3], HOSTLEN);
+@@ -989,6 +1001,11 @@
+ 		else
+ 			handle_setlogin(si, si->su, parv[0], 0);
+ 	}
++
++	hdata.si = si;
++	hdata.user = si->su;
++	hdata.oldvhost = oldvhost;
++	hook_call_event("incoming_host_change", &hdata);
+ }
+ 
+ static void m_motd(sourceinfo_t *si, int parc, char *parv[])
+diff -r 64a28dcf87f9 modules/protocol/ts6-generic.c
+--- a/modules/protocol/ts6-generic.c	Sun Jul 26 15:36:00 2009 +0200
++++ b/modules/protocol/ts6-generic.c	Sun Aug 02 19:10:30 2009 +0100
+@@ -1142,12 +1142,23 @@
+ 	}
+ 	else if (!irccasecmp(parv[1], "CHGHOST"))
+ 	{
++		hook_incoming_host_change_t hdata;
++		char oldvhost[HOSTLEN];
++
+ 		if (parc < 4)
+ 			return;
+ 		u = user_find(parv[2]);
+ 		if (u == NULL)
+ 			return;
++
++		strlcpy(oldvhost, u->vhost, HOSTLEN);
+ 		strlcpy(u->vhost, parv[3], HOSTLEN);
++
++		hdata.si = si;
++		hdata.user = u;
++		hdata.oldvhost = oldvhost;
++		hook_call_event("incoming_host_change", &hdata);
++
+ 		slog(LG_DEBUG, "m_encap(): chghost %s -> %s", u->nick,
+ 				u->vhost);
+ 	}
+@@ -1254,11 +1265,19 @@
+ static void m_chghost(sourceinfo_t *si, int parc, char *parv[])
+ {
+ 	user_t *u = user_find(parv[0]);
++	hook_incoming_host_change_t hdata;
++	char oldvhost[HOSTLEN];
+ 
+ 	if (!u)
+ 		return;
+ 
++		strlcpy(oldvhost, u->vhost, HOSTLEN);
+ 	strlcpy(u->vhost, parv[1], HOSTLEN);
++
++	hdata.si = si;
++	hdata.user = u;
++	hdata.oldvhost = oldvhost;
++	hook_call_event("incoming_host_change", &hdata);
+ }
+ 
+ static void m_motd(sourceinfo_t *si, int parc, char *parv[])
