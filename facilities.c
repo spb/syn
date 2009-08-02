@@ -300,6 +300,7 @@ void _moddeinit()
     command_delete(&syn_facility, syn_cmdtree);
 
     hook_del_hook("user_add", facility_newuser);
+    hook_del_hook("incoming_host_change", on_host_change);
 }
 
 void facility_newuser(void *v)
