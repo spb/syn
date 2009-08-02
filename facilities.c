@@ -1,4 +1,5 @@
 #include "atheme.h"
+#include "pmodule.h"
 
 #include "syn.h"
 
@@ -104,6 +105,10 @@ unsigned int block_report_interval = 60;
 time_t last_block_report = 0;
 
 BlockHeap *facility_heap, *blacklist_heap;
+
+// Horrible hack to work around the race condition when
+// NickServ and syn both cloak somebody.
+static void on_host_change(void *vdata);
 
 void free_facility(mowgli_dictionary_elem_t *e, void *v)
 {
@@ -244,6 +249,8 @@ void _modinit(module_t *m)
 
     hook_add_event("user_add");
     hook_add_hook("user_add", facility_newuser);
+    hook_add_event("incoming_host_change");
+    hook_add_hook("incoming_host_change", on_host_change);
 
     command_add(&syn_facility, syn_cmdtree);
 
@@ -316,6 +323,7 @@ void facility_newuser(void *v)
 
         syn_debug(2, "User %s matches facility %s", u->nick, f->hostpart);
         dospam = 1;
+        u->flags |= SYN_UF_FACILITY_USER;
 
         if (f->blocked > 0)
         {
@@ -773,3 +781,24 @@ void syn_cmd_facility_show(sourceinfo_t *si, int parc, char **parv)
     }
     command_success_nodata(si, "%d blacklist entries for %s", count, f->hostpart);
 }
+
+static void on_host_change(void *vdata)
+{
+    hook_incoming_host_change_t *data = vdata;
+
+    if (!(data->user->flags & SYN_UF_FACILITY_USER))
+        return;
+
+    if (0 == strncmp(data->user->vhost, "unaffiliated/", 13) && 0 != strncmp(data->oldvhost, "nat/", 4))
+    {
+        // Override the host change -- a facility cloak is being replaced by unaffiliated.
+        strlcpy(data->user->vhost, data->oldvhost, HOSTLEN);
+    }
+    else
+    {
+        // Bounce the sethost, to fix the race condition where services and syn both set a vhost on connect.
+    }
+    sethost_sts(syn->me, data->user, data->user->vhost);
+}
+
+
