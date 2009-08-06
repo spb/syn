@@ -346,6 +346,8 @@ void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv)
             pattern, stype, get_oper_name(si), syn_format_expiry(newmask->expires));
     command_success_nodata(si, "Added \2%s\2 to %s mask list, expiring %s.",
                             pattern, stype, syn_format_expiry(newmask->expires));
+
+    save_maskdb();
 }
 
 void syn_cmd_delmask(sourceinfo_t *si, int parc, char **parv)
@@ -381,6 +383,9 @@ void syn_cmd_delmask(sourceinfo_t *si, int parc, char **parv)
             free(m->regex);
             free(m);
             node_del(n, &masks);
+
+            save_maskdb();
+
             return;
         }
     }
@@ -440,6 +445,9 @@ void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv)
         m->type = t;
         syn_report("\002SETMASK\002 %s type->%s by %s", pattern, nextarg, get_oper_name(si));
         command_success_nodata(si, "Changed type of mask \2%s\2 to %s", pattern, nextarg);
+
+        save_maskdb();
+
         return;
     }
 
@@ -458,6 +466,9 @@ void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv)
             syn_report("\002SETMASK\002 %s expiry->off by %s", pattern, get_oper_name(si));
             command_success_nodata(si, "Expiry disabled for mask \2%s\2.", pattern);
         }
+
+        save_maskdb();
+
         return;
     }
 
