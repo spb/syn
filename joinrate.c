@@ -230,6 +230,7 @@ static void syn_cmd_setrate(sourceinfo_t *si, int parc, char **parv)
 
         syn_report("\002SETRATE\002 default->%d/%d by %s", default_rate, default_burst, get_oper_name(si));
         command_success_nodata(si, "Warning threshold set to %d seconds, with a burst of %d", default_rate, default_burst);
+        save_rate_settings();
         return;
     }
 
@@ -245,6 +246,7 @@ static void syn_cmd_setrate(sourceinfo_t *si, int parc, char **parv)
         ce->use_custom = false;
         syn_report("\002SETRATE\002 %s->default by %s", parv[0], get_oper_name(si));
         command_success_nodata(si, "Custom rate settings have been disabled for %s", parv[0]);
+        save_rate_settings();
         return;
     }
 
@@ -280,4 +282,5 @@ static void syn_cmd_setrate(sourceinfo_t *si, int parc, char **parv)
 
     syn_report("\002SETRATE\002 %s->%d/%d by %s", parv[0], r, b, get_oper_name(si));
     command_success_nodata(si, "Warning threshold for %s set to %d seconds, with a burst of %d", parv[0], r, b);
+    save_rate_settings();
 }
