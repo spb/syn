@@ -9,7 +9,7 @@ DECLARE_MODULE_V1
         "Stephen Bennett <stephen -at- freenode.net>"
 );
 
-static void masks_newuser(void *v);
+static void masks_newuser(hook_user_data_t *data);
 
 static void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv);
 static void syn_cmd_delmask(sourceinfo_t *si, int parc, char **parv);
@@ -176,9 +176,9 @@ void _modinit(module_t *m)
     command_add(&syn_listmask, syn_cmdtree);
 
     hook_add_event("nick_check");
-    hook_add_hook("nick_check", masks_newuser);
+    hook_add_nick_check(masks_newuser);
     hook_add_event("user_add");
-    hook_add_hook("user_add", masks_newuser);
+    hook_add_user_add(masks_newuser);
 
     event_add("masks_check_expiry", check_expiry, NULL, 60);
 
@@ -197,15 +197,15 @@ void _moddeinit()
     del_conf_item("lethalmask_duration", syn_conftable);
     del_conf_item("lethalmask_message", syn_conftable);
 
-    hook_del_hook("user_add", masks_newuser);
-    hook_del_hook("nick_check", masks_newuser);
+    hook_del_user_add(masks_newuser);
+    hook_del_nick_check(masks_newuser);
 
     event_delete(check_expiry, NULL);
 }
 
-void masks_newuser(void *v)
+void masks_newuser(hook_user_data_t *data)
 {
-    user_t *u = v;
+    user_t *u = data->u;
 
     char nuh[NICKLEN+USERLEN+HOSTLEN+GECOSLEN];
     snprintf(nuh, sizeof(nuh), "%s!%s@%s %s", u->nick, u->user, u->host, u->gecos);

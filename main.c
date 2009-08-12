@@ -30,8 +30,8 @@ void _modinit(module_t *m)
     help_addentry(&syn_helptree, "LIST", "help/syn/list", NULL);
 
     hook_add_event("config_ready");
-    hook_add_hook("config_ready", syn_join_channel);
-    hook_add_hook("server_eob", syn_join_channel);
+    hook_add_config_ready((void(*)(void*))syn_join_channel);
+    hook_add_server_eob((void(*)(server_t*))syn_join_channel);
 
     add_dupstr_conf_item("CHANNEL", &syn_conftable, &syn_config.channel);
     add_uint_conf_item("DEBUG", &syn_conftable, &syn_config.debug, 0, 15);
@@ -52,8 +52,8 @@ void _moddeinit()
     del_conf_item("DEBUG", &syn_conftable);
     del_conf_item("VERBOSE", &syn_conftable);
 
-    hook_del_hook("config_ready", syn_join_channel);
-    hook_del_hook("server_eob", syn_join_channel);
+    hook_del_config_ready((void(*)(void*))syn_join_channel);
+    hook_del_server_eob((void(*)(server_t*))syn_join_channel);
 
     service_delete(syn);
 }

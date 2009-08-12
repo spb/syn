@@ -10,7 +10,7 @@ DECLARE_MODULE_V1
 );
 
 static void tor_kline_check(void *);
-static void tor_newuser(void*);
+static void tor_newuser(hook_user_data_t *data);
 
 static void syn_cmd_checktor(sourceinfo_t*, int, char**);
 
@@ -34,7 +34,7 @@ void _modinit(module_t *m)
     command_add(&syn_checktor, syn_cmdtree);
 
     hook_add_event("user_add");
-    hook_add_hook("user_add", tor_newuser);
+    hook_add_user_add(tor_newuser);
     hook_add_event("syn_kline_check");
     hook_add_hook("syn_kline_check", tor_kline_check);
 
@@ -49,7 +49,8 @@ void _modinit(module_t *m)
 
     MOWGLI_PATRICIA_FOREACH(u, &state, userlist)
     {
-        tor_newuser(u);
+        hook_user_data_t data = { .u = u };
+        tor_newuser(&data);
     }
 }
 
@@ -62,15 +63,15 @@ void _moddeinit()
 
     command_delete(&syn_checktor, syn_cmdtree);
 
-    hook_del_hook("user_add", tor_newuser);
+    hook_del_user_add(tor_newuser);
     hook_del_hook("syn_kline_check", tor_kline_check);
 
     event_delete(load_tor_list, NULL);
 }
 
-static void tor_newuser(void *v)
+static void tor_newuser(hook_user_data_t *data)
 {
-    user_t *u = v;
+    user_t *u = data->u;
 
     if (is_internal_client(u) || *u->ip == '\0')
         return;
@@ -122,7 +123,8 @@ static void load_tor_list()
     mowgli_patricia_iteration_state_t state;
     MOWGLI_PATRICIA_FOREACH(u, &state, userlist)
     {
-        tor_newuser(u);
+        hook_user_data_t data = { .u = u };
+        tor_newuser(&data);
     }
 }
 

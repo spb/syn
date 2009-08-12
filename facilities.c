@@ -10,7 +10,7 @@ DECLARE_MODULE_V1
         "Stephen Bennett <stephen -at- freenode.net>"
 );
 
-void facility_newuser(void *v);
+void facility_newuser(hook_user_data_t *data);
 
 void syn_cmd_facility(sourceinfo_t *si, int parc, char **parv);
 
@@ -248,7 +248,7 @@ void _modinit(module_t *m)
     use_syn_kline_symbols(m);
 
     hook_add_event("user_add");
-    hook_add_hook("user_add", facility_newuser);
+    hook_add_user_add(facility_newuser);
     hook_add_event("incoming_host_change");
     hook_add_hook("incoming_host_change", on_host_change);
 
@@ -299,13 +299,13 @@ void _moddeinit()
 
     command_delete(&syn_facility, syn_cmdtree);
 
-    hook_del_hook("user_add", facility_newuser);
+    hook_del_user_add(facility_newuser);
     hook_del_hook("incoming_host_change", on_host_change);
 }
 
-void facility_newuser(void *v)
+void facility_newuser(hook_user_data_t *data)
 {
-    user_t *u = v;
+    user_t *u = data->u;
     facility_t *f;
     mowgli_dictionary_iteration_state_t state;
 

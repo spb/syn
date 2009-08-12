@@ -9,7 +9,7 @@ DECLARE_MODULE_V1
         "Stephen Bennett <stephen -at- freenode.net>"
 );
 
-static void syn_ratecheck(void *v);
+static void syn_ratecheck(hook_channel_joinpart_t *data);
 
 static void syn_cmd_setrate(sourceinfo_t *si, int parc, char **parv);
 static void syn_cmd_showrate(sourceinfo_t *si, int parc, char **parv);
@@ -113,7 +113,7 @@ void _modinit(module_t *m)
     command_add(&syn_showrate, syn_cmdtree);
 
     hook_add_event("channel_join");
-    hook_add_hook("channel_join", syn_ratecheck);
+    hook_add_channel_join(syn_ratecheck);
 
     channellist = mowgli_patricia_create(noopcanon);
     channelheap = BlockHeapCreate(sizeof(channelentry), HEAP_USER);
@@ -134,7 +134,7 @@ void _moddeinit()
     command_delete(&syn_setrate, syn_cmdtree);
     command_delete(&syn_showrate, syn_cmdtree);
 
-    hook_del_hook("channel_join", syn_ratecheck);
+    hook_del_channel_join(syn_ratecheck);
 }
 
 static void free_channelentry(const char *key, void *data, void *privdata)
@@ -142,9 +142,8 @@ static void free_channelentry(const char *key, void *data, void *privdata)
     BlockHeapFree(channelheap, data);
 }
 
-static void syn_ratecheck(void *v)
+static void syn_ratecheck(hook_channel_joinpart_t *data)
 {
-    hook_channel_joinpart_t *data = v;
     chanuser_t *cu = data->cu;
 
     // Don't warn about burst joins.

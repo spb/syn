@@ -9,7 +9,7 @@ DECLARE_MODULE_V1
         "Stephen Bennett <stephen -at- freenode.net>"
 );
 
-static void gateway_newuser(void *v);
+static void gateway_newuser(hook_user_data_t *data);
 
 static void check_all_users(void *v)
 {
@@ -18,7 +18,8 @@ static void check_all_users(void *v)
 
     MOWGLI_PATRICIA_FOREACH(u, &state, userlist)
     {
-        gateway_newuser(u);
+        hook_user_data_t data = { .u = u };
+        gateway_newuser(&data);
     }
 }
 
@@ -29,7 +30,7 @@ void _modinit(module_t *m)
     use_syn_kline_symbols(m);
 
     hook_add_event("user_add");
-    hook_add_hook("user_add", gateway_newuser);
+    hook_add_user_add(gateway_newuser);
     hook_add_event("syn_kline_added");
     hook_add_hook("syn_kline_added", check_all_users);
     hook_add_event("syn_kline_check");
@@ -39,13 +40,13 @@ void _modinit(module_t *m)
 
 void _moddeinit()
 {
-    hook_del_hook("user_add", gateway_newuser);
+    hook_del_user_add(gateway_newuser);
     hook_del_hook("syn_kline_added", check_all_users);
 }
 
-static void gateway_newuser(void *v)
+static void gateway_newuser(hook_user_data_t *data)
 {
-    user_t *u = v;
+    user_t *u = data->u;
     kline_t *k = NULL;
 
     char *ident = u->user;
