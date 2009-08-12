@@ -309,6 +309,10 @@ void facility_newuser(hook_user_data_t *data)
     facility_t *f;
     mowgli_dictionary_iteration_state_t state;
 
+    /* If the user has already been killed, don't try to do anything */
+    if (!u)
+        return;
+
     int blocked = 0, throttled = 0, blacklisted = 0;
     char *blockmessage = NULL, *throttlemessage = NULL;
     facility_cloak_type cloak = facility_cloak_none;
@@ -388,6 +392,7 @@ void facility_newuser(hook_user_data_t *data)
                     throttling_facility->hostpart);
         }
         syn_kill2(u, "Throttled", "%s", throttlemessage);
+        data->u = NULL;
         return;
     }
 
@@ -400,6 +405,7 @@ void facility_newuser(hook_user_data_t *data)
                     u->nick, blocking_facility ? blocking_facility->hostpart : "(unknown)");
         }
         syn_kill2(u, "Facility Blocked", "%s", blockmessage);
+        data->u = NULL;
         return;
     }
 
@@ -412,6 +418,7 @@ void facility_newuser(hook_user_data_t *data)
                     u->nick, blocking_facility->hostpart, blocking_regex);
         }
         syn_kill(u, "%s", blockmessage);
+        data->u = NULL;
         return;
     }
 

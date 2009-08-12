@@ -73,6 +73,10 @@ static void tor_newuser(hook_user_data_t *data)
 {
     user_t *u = data->u;
 
+    /* If the user has already been killed, don't try to do anything */
+    if (!u)
+        return;
+
     if (is_internal_client(u) || *u->ip == '\0')
         return;
 

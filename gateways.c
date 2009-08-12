@@ -49,6 +49,10 @@ static void gateway_newuser(hook_user_data_t *data)
     user_t *u = data->u;
     kline_t *k = NULL;
 
+    /* If the user has already been killed, don't try to do anything */
+    if (!u)
+        return;
+
     char *ident = u->user;
     if (*ident == '~')
         ++ident;
@@ -63,6 +67,7 @@ static void gateway_newuser(hook_user_data_t *data)
         {
             syn_report("Killing user %s; hex ident matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
             syn_kill(u, "Your reported IP [%s] is banned: %s", identhost, k->reason);
+            data->u = NULL;
             return;
         }
 
@@ -88,12 +93,14 @@ static void gateway_newuser(hook_user_data_t *data)
     {
         syn_report("Killing user %s; realname host matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
         syn_kill(u, "Your reported hostname [%s] is banned: %s", gecos, k->reason);
+        data->u = NULL;
         return;
     }
     else if ((k = syn_find_kline(NULL, p)))
     {
         syn_report("Killing user %s; realname host matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
         syn_kill(u, "Your reported hostname [%s] is banned: %s", p, k->reason);
+        data->u = NULL;
         return;
     }
 

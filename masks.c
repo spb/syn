@@ -207,6 +207,10 @@ void masks_newuser(hook_user_data_t *data)
 {
     user_t *u = data->u;
 
+    /* If the user has already been killed, don't try to do anything */
+    if (!u)
+        return;
+
     char nuh[NICKLEN+USERLEN+HOSTLEN+GECOSLEN];
     snprintf(nuh, sizeof(nuh), "%s!%s@%s %s", u->nick, u->user, u->host, u->gecos);
 
@@ -249,6 +253,7 @@ void masks_newuser(hook_user_data_t *data)
         syn_report("Killing client %s(%s@%s) due to lethal mask %s",
                 u->nick, u->user, u->host, blocked_regex);
         syn_kill_or_kline(u, lethal_mask_duration, lethal_mask_message);
+        data->u = NULL;
         return;
     }
 
