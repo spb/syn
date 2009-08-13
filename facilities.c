@@ -10,7 +10,7 @@ DECLARE_MODULE_V1
         "Stephen Bennett <stephen -at- freenode.net>"
 );
 
-void facility_newuser(hook_user_data_t *data);
+void facility_newuser(hook_user_nick_t *data);
 
 void syn_cmd_facility(sourceinfo_t *si, int parc, char **parv);
 
@@ -303,7 +303,7 @@ void _moddeinit()
     hook_del_hook("incoming_host_change", on_host_change);
 }
 
-void facility_newuser(hook_user_data_t *data)
+void facility_newuser(hook_user_nick_t *data)
 {
     user_t *u = data->u;
     facility_t *f;
