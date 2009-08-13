@@ -74,9 +74,13 @@ static void gateway_newuser(hook_user_nick_t *data)
         // Ident not K:lined(yet); check whether it should be
         // Note that this happens after the K:line check; if this hook adds a
         // new kline, then we'll be called again through the syn_kline_add hook
-        syn_kline_check_data_t d = { identhost, u };
+        syn_kline_check_data_t d = { identhost, u, 0 };
         hook_call_event("syn_kline_check", &d);
 
+        // If a kline was added by this, then we got called again and have already killed the user if we should.
+        // Don't do any more.
+        if (d.added)
+            return;
     }
 
     char gecos[GECOSLEN];

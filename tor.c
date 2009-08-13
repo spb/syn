@@ -80,7 +80,7 @@ static void tor_newuser(hook_user_nick_t *data)
     if (is_internal_client(u) || *u->ip == '\0')
         return;
 
-    syn_kline_check_data_t d = { u->ip, u };
+    syn_kline_check_data_t d = { u->ip, u, 0 };
     tor_kline_check(&d);
 }
 
@@ -97,6 +97,7 @@ static void tor_kline_check(void *v)
     // IP was listed in the tor list.
     syn_report("K:lining tor node %s (user %s)", d->ip, d->u->nick);
     syn_kline(d->ip, kline_duration, kline_reason);
+    d->added = 1;
 }
 
 static void load_tor_list()

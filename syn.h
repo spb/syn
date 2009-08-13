@@ -55,6 +55,7 @@ typedef struct
 {
     const char *ip;
     user_t *u;
+    int added;
 } syn_kline_check_data_t;
 
 // This in user_t.flags means the user connected through a facility of some sort,
