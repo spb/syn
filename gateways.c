@@ -80,7 +80,13 @@ static void gateway_newuser(hook_user_nick_t *data)
         // If a kline was added by this, then we got called again and have already killed the user if we should.
         // Don't do any more.
         if (d.added)
+        {
+            // On the off-chance that a kline was added that doesn't in fact kill this user, this will cause
+            // subsequent checks (facilities etc) to be skipped. That's better than crashing or running amok
+            // because we tried to gateway-cloak an already-dead user, though.
+            data.u = NULL;
             return;
+        }
     }
 
     char gecos[GECOSLEN];
