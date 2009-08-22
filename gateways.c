@@ -84,7 +84,7 @@ static void gateway_newuser(hook_user_nick_t *data)
             // On the off-chance that a kline was added that doesn't in fact kill this user, this will cause
             // subsequent checks (facilities etc) to be skipped. That's better than crashing or running amok
             // because we tried to gateway-cloak an already-dead user, though.
-            data.u = NULL;
+            data->u = NULL;
             return;
         }
     }
