@@ -53,6 +53,10 @@ static void gateway_newuser(hook_user_nick_t *data)
     if (!u)
         return;
 
+    // If they've been marked as not having a decodeable IP address, don't try again.
+    if (u->flags & SYN_UF_NO_GATEWAY_IP)
+        return;
+
     char *ident = u->user;
     if (*ident == '~')
         ++ident;
@@ -87,6 +91,13 @@ static void gateway_newuser(hook_user_nick_t *data)
             data->u = NULL;
             return;
         }
+    }
+    else
+    {
+        // Performance hack: if we can't decode a hex IP, assume that this user is not connecting through a
+        // gateway that makes any attempt to identify them, and skip them for all future checks.
+        u->flags |= SYN_UF_NO_GATEWAY_IP;
+        return;
     }
 
     char gecos[GECOSLEN];

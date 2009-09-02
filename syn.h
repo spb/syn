@@ -61,6 +61,7 @@ typedef struct
 // This in user_t.flags means the user connected through a facility of some sort,
 // so our gateway-cloak-enforcement needs to take effect.
 #define SYN_UF_FACILITY_USER    0x80000000
+#define SYN_UF_NO_GATEWAY_IP    0x40000000
 
 
 #endif
