@@ -10,7 +10,8 @@ DECLARE_MODULE_V1
         "Stephen Bennett <stephen -at- freenode.net>"
 );
 
-list_t ircd_klines;
+mowgli_patricia_t *ircd_klines;
+list_t ircd_wildcard_klines;
 BlockHeap *ircd_kline_heap;
 
 static void syn_m_kline(sourceinfo_t *si, int parc, char **parv);
@@ -23,6 +24,7 @@ void _modinit(module_t *m)
 {
     use_syn_main_symbols(m);
 
+    ircd_klines = mowgli_patricia_create(noopcanon);
     ircd_kline_heap = BlockHeapCreate(sizeof(kline_t), 16);
 
     hook_add_event("syn_kline_added");
@@ -45,17 +47,15 @@ void _moddeinit()
 
 kline_t* _syn_find_kline(const char *user, const char *host)
 {
-    node_t *n;
     kline_t *k;
+    if ((k = mowgli_patricia_retrieve(ircd_klines, host)))
+        return k;
 
-    LIST_FOREACH(n, ircd_klines.head)
+    node_t *n;
+    LIST_FOREACH(n, ircd_wildcard_klines.head)
     {
-        k = (kline_t*) n->data;
-        if ((NULL == user || 0 == match(k->user, user)) &&
-            0 == match(k->host, host))
-        {
+        if (match(k->host, host))
             return k;
-        }
     }
     return NULL;
 }
@@ -82,8 +82,15 @@ static void syn_m_kline(sourceinfo_t *si, int parc, char **parv)
         *p = '\0';
     }
 
-    node_t *n = node_create();
-    node_add(k, n, &ircd_klines);
+    if (strchr(k->host, '*') || strchr(k->host, '?'))
+    {
+        node_t *n = node_create();
+        node_add(k, n, &ircd_wildcard_klines);
+    }
+    else
+    {
+        mowgli_patricia_add(ircd_klines, k->host, k);
+    }
 
     hook_call_event("syn_kline_added", k);
 
@@ -95,14 +102,20 @@ static void syn_m_unkline(sourceinfo_t *si, int parc, char **parv)
     node_t *n, *tn;
     kline_t *k;
 
-    LIST_FOREACH_SAFE(n, tn, ircd_klines.head)
+    const char *user = parv[1], *host = parv[2];
+
+    kline_t *removed = mowgli_patricia_delete(ircd_klines, host);
+    if (removed)
+        BlockHeapFree(ircd_kline_heap, removed);
+
+    LIST_FOREACH_SAFE(n, tn, ircd_wildcard_klines.head)
     {
         k = (kline_t*) n->data;
-        if (0 == strcasecmp(k->user, parv[1]) &&
-            0 == strcasecmp(k->host, parv[2]))
+        if (0 == strcasecmp(k->user, user) &&
+            0 == strcasecmp(k->host, host))
         {
             syn_debug(1, "Removing K:line on %s@%s", k->user, k->host);
-            node_del(n, &ircd_klines);
+            node_del(n, &ircd_wildcard_klines);
             free(k->user);
             free(k->host);
             free(k->reason);
@@ -116,7 +129,7 @@ static void expire_klines(void *unused)
     node_t *n, *tn;
     kline_t *k;
 
-    LIST_FOREACH_SAFE(n, tn, ircd_klines.head)
+    LIST_FOREACH_SAFE(n, tn, ircd_wildcard_klines.head)
     {
         k = (kline_t*) n->data;
 
@@ -126,7 +139,23 @@ static void expire_klines(void *unused)
         if (k->expires <= CURRTIME)
         {
             syn_debug(1, "Expiring K:line on %s@%s", k->user, k->host);
-            node_del(n, &ircd_klines);
+            node_del(n, &ircd_wildcard_klines);
+            free(k->user);
+            free(k->host);
+            free(k->reason);
+            BlockHeapFree(ircd_kline_heap, k);
+        }
+    }
+
+    mowgli_patricia_iteration_state_t state;
+    MOWGLI_PATRICIA_FOREACH(k, &state, ircd_klines)
+    {
+        if (k->duration == 0)
+            continue;
+        if (k->expires <= CURRTIME)
+        {
+            syn_debug(1, "Expiring K:line on %s@%s", k->user, k->host);
+            mowgli_patricia_delete(ircd_klines, k->host);
             free(k->user);
             free(k->host);
             free(k->reason);
@@ -157,8 +186,15 @@ static void _syn_vkline(const char *host, int duration, const char *reason, va_l
         *p = '\0';
     }
 
-    node_t *n = node_create();
-    node_add(k, n, &ircd_klines);
+    if (strchr(k->host, '*') || strchr(k->host, '?'))
+    {
+        node_t *n = node_create();
+        node_add(k, n, &ircd_wildcard_klines);
+    }
+    else
+    {
+        mowgli_patricia_add(ircd_klines, k->host, k);
+    }
 
     kline_sts("*", "*", k->host, k->duration, k->reason);
 
