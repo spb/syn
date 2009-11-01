@@ -55,7 +55,7 @@ kline_t* _syn_find_kline(const char *user, const char *host)
     LIST_FOREACH(n, ircd_wildcard_klines.head)
     {
         k = n->data;
-        if (match(k->host, host))
+        if (0 == match(k->host, host))
             return k;
     }
     return NULL;
