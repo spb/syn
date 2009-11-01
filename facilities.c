@@ -423,7 +423,8 @@ void facility_newuser(hook_user_nick_t *data)
     }
 
     char *slash = strchr(u->vhost, '/');
-    if (slash != NULL && 0 != strncmp(u->vhost, "unaffiliated", slash - u->vhost))
+    if (slash != NULL && 0 != strncmp(u->vhost, "unaffiliated", slash - u->vhost) &&
+            0 != strncmp(u->vhost, u->host, HOSTLEN))
         return;
 
     strncpy(u->vhost, u->host, HOSTLEN);
