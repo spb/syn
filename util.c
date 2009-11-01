@@ -14,9 +14,12 @@ const char *decode_hex_ip(const char *hex)
 
     buf[0] = '\0';
 
-    sscanf(hex, "%x", &ip);
+    if (strlen(hex) != 8)
+        return NULL;
 
-    if (ip < 0x01000000)
+    char *endptr;
+    ip = strtoul(hex, &endptr, 16);
+    if (*endptr)
         return NULL;
 
     sprintf(buf, "%hhu.%hhu.%hhu.%hhu", (ip >> 24) & 0xff, (ip >> 16) & 0xff, (ip >> 8) & 0xff, ip & 0xff);
