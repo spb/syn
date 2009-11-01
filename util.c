@@ -16,7 +16,7 @@ const char *decode_hex_ip(const char *hex)
 
     sscanf(hex, "%x", &ip);
 
-    if (ip == 0)
+    if (ip < 0x01000000)
         return NULL;
 
     sprintf(buf, "%hhu.%hhu.%hhu.%hhu", (ip >> 24) & 0xff, (ip >> 16) & 0xff, (ip >> 8) & 0xff, ip & 0xff);
