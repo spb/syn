@@ -18,6 +18,7 @@ list_t syn_conftable;
 struct
 {
     char *channel;
+    char *debugchannel;
     unsigned int debug;
     unsigned int verbosity;
 } syn_config;
@@ -34,6 +35,7 @@ void _modinit(module_t *m)
     hook_add_server_eob((void(*)(server_t*))syn_join_channel);
 
     add_dupstr_conf_item("CHANNEL", &syn_conftable, &syn_config.channel);
+    add_dupstr_conf_item("DEBUGCHANNEL", &syn_conftable, &syn_config.debugchannel);
     add_uint_conf_item("DEBUG", &syn_conftable, &syn_config.debug, 0, 15);
     add_uint_conf_item("VERBOSE", &syn_conftable, &syn_config.verbosity, 0, 15);
 
@@ -49,6 +51,7 @@ void _moddeinit()
     help_delentry(&syn_helptree, "LIST");
 
     del_conf_item("CHANNEL", &syn_conftable);
+    del_conf_item("DEBUGCHANNEL", &syn_conftable);
     del_conf_item("DEBUG", &syn_conftable);
     del_conf_item("VERBOSE", &syn_conftable);
 
@@ -142,6 +145,8 @@ static void syn_join_channel(void *unused)
 {
     if (syn_config.channel && me.connected)
         join(syn_config.channel, syn->nick);
+    if (syn_config.debugchannel && me.connected)
+        join(syn_config.debugchannel, syn->nick);
 }
 
 void syn_debug(int debuglevel, char *fmt, ...)
@@ -152,17 +157,22 @@ void syn_debug(int debuglevel, char *fmt, ...)
     va_list ap;
     char buf[BUFSIZE];
 
-    if (!syn_config.channel)
+    char *debugchannel = syn_config.debugchannel;
+
+    if (!debugchannel)
+        debugchannel = syn_config.channel;
+
+    if (!debugchannel)
         return;
 
-    if (!channel_find(syn_config.channel))
+    if (!channel_find(debugchannel))
         return;
 
     va_start(ap, fmt);
     vsnprintf(buf, BUFSIZE, fmt, ap);
     va_end(ap);
 
-    msg(syn->nick, syn_config.channel, "[debug%d] %s", debuglevel, buf);
+    msg(syn->nick, debugchannel, "[debug%d] %s", debuglevel, buf);
 }
 
 void syn_vreport(char *fmt, va_list ap)
