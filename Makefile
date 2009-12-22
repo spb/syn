@@ -1,5 +1,7 @@
-PREFIX ?= /home/users/stephen/bins/atheme
-ATHEME ?= ../atheme
+include Makefile.config
+
+PREFIX ?= $(prefix)
+ATHEME ?= $(source)
 
 ATHEME_CFLAGS = -I$(ATHEME)/include -I$(ATHEME)/libmowgli/src/libmowgli -DDATADIR=\"$(PREFIX)/etc\"
 
