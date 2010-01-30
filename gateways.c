@@ -117,7 +117,7 @@ static void gateway_newuser(hook_user_nick_t *data)
         data->u = NULL;
         return;
     }
-    else if ((k = syn_find_kline(NULL, p)))
+    else if (p && (k = syn_find_kline(NULL, p)))
     {
         syn_report("Killing user %s; realname host matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
         syn_kill(u, "Your reported hostname [%s] is banned: %s", p, k->reason);
