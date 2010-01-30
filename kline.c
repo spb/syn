@@ -216,7 +216,7 @@ static void _syn_vkill(user_t *victim, const char *reason, va_list ap)
 {
     char buf[BUFSIZE];
     vsnprintf(buf, BUFSIZE, reason, ap);
-    notice(syn->nick, victim->nick, buf);
+    notice(syn->nick, victim->nick, "%s", buf);
     kill_user(syn->me, victim, "%s", kline_kill_reason);
 }
 
@@ -234,7 +234,7 @@ static void _syn_vkill2(user_t *victim, const char *killreason, const char *reas
 {
     char buf[BUFSIZE];
     vsnprintf(buf, BUFSIZE, reason, ap);
-    notice(syn->nick, victim->nick, buf);
+    notice(syn->nick, victim->nick, "%s", buf);
     kill_user(syn->me, victim, "%s", killreason);
 }
 
