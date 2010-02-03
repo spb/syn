@@ -422,10 +422,27 @@ void facility_newuser(hook_user_nick_t *data)
         return;
     }
 
+    // Check whether they've already been cloaked. If vhost contains /, vhost != host, and
+    // vhost isn't unaffiliated/*, then they have a project cloak that we shouldn't override.
     char *slash = strchr(u->vhost, '/');
     if (slash != NULL && 0 != strncmp(u->vhost, "unaffiliated", slash - u->vhost) &&
             0 != strncmp(u->vhost, u->host, HOSTLEN))
         return;
+
+    // Special case for tor-sasl. In this case, u->host has already been processed by the ircd,
+    // so we only care about the unaffiliated cloak overriding it.
+    if (0 == strncmp(u->host, "gateway/tor-sasl", 16))
+    {
+        if (0 == strncmp(u->vhost, "unaffiliated", 12))
+        {
+            strncpy(u->vhost, u->host, sizeof(u->vhost));
+            sethost_sts(syn->me, u, u->vhost);
+        }
+
+        if (dospam && !me.bursting)
+            syn_report2(2, "Allowed %s!%s@%s [%s]", u->nick, u->user, u->vhost, u->gecos);
+        return;
+    }
 
     strncpy(u->vhost, u->host, HOSTLEN);
     switch (cloak)
