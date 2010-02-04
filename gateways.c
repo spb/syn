@@ -1,4 +1,5 @@
 #include "atheme.h"
+#include "uplink.h"
 
 #include "syn.h"
 
@@ -91,6 +92,11 @@ static void gateway_newuser(hook_user_nick_t *data)
             data->u = NULL;
             return;
         }
+
+        // They weren't already K:lined, and we didn't K:line them. BOPM may want to, though...
+        sts(":%s ENCAP * SNOTE F :Client connecting: %s (%s@%s) [%s] {%s} [%s]",
+                        ME, u->nick, u->user, u->host, identhost, "?", u->gecos);
+
     }
     else
     {
