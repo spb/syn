@@ -69,6 +69,12 @@ static void syn_m_kline(sourceinfo_t *si, int parc, char **parv)
         return;
     }
 
+    if (parv[3][0] == '*' && parv[3][1] == '\0')
+    {
+        wallops("%s is an idiot. Dropping *@* kline.", si->su->nick);
+        return;
+    }
+
     kline_t *k = BlockHeapAlloc(ircd_kline_heap);
     k->duration = atoi(parv[1]);
     k->settime = CURRTIME;
