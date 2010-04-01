@@ -173,9 +173,9 @@ static void expire_klines(void *unused)
 
 static void _syn_vkline(const char *host, int duration, const char *reason, va_list ap)
 {
-    if (_syn_find_kline("*", host))
+/*    if (_syn_find_kline("*", host))
         return;
-
+*/
     char buf[BUFSIZE];
     vsnprintf(buf, BUFSIZE, reason, ap);
 
