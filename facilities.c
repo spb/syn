@@ -815,9 +815,11 @@ static void on_host_change(void *vdata)
     if (!(data->user->flags & SYN_UF_FACILITY_USER))
         return;
 
-    if (0 == strncmp(data->user->vhost, "unaffiliated/", 13) && 0 != strncmp(data->oldvhost, "nat/", 4))
+    if ((0 == strncmp(data->user->vhost, "unaffiliated/", 13) && 0 != strncmp(data->oldvhost, "nat/", 4)) ||
+        0 == strncmp(data->user->vhost, data->user->host, HOSTLEN))
     {
-        // Override the host change -- a facility cloak is being replaced by unaffiliated.
+        // Override the host change -- a facility cloak is being replaced by unaffiliated, or a facility by
+        // another facility (this happens when removing a nickserv account vhost while a gateway user is logged in)
         strlcpy(data->user->vhost, data->oldvhost, HOSTLEN);
     }
     else
