@@ -17,6 +17,7 @@ mowgli_heap_t *ircd_kline_heap;
 mowgli_eventloop_timer_t *expire_timer = 0;
 
 static void syn_m_kline(sourceinfo_t *si, int parc, char **parv);
+static void syn_m_ban(sourceinfo_t *si, int parc, char **parv);
 static void syn_m_unkline(sourceinfo_t *si, int parc, char **parv);
 static void expire_klines(void *unused);
 
@@ -34,6 +35,7 @@ void _modinit(module_t *m)
     add_dupstr_conf_item("KLINE_KILL_REASON", &syn->conf_table, 0, &kline_kill_reason, "Banned");
 
     pcommand_add("KLINE", syn_m_kline, 5, MSRC_USER);
+    pcommand_add("BAN", syn_m_ban, 8, MSRC_SERVER);
     pcommand_add("UNKLINE", syn_m_unkline, 3, MSRC_USER);
 
     expire_timer = mowgli_timer_add(base_eventloop, "expire_ircd_klines", expire_klines, NULL, 120);
@@ -42,6 +44,7 @@ void _modinit(module_t *m)
 void _moddeinit(module_unload_intent_t intent)
 {
     pcommand_delete("KLINE");
+    pcommand_delete("BAN");
     pcommand_delete("UNKLINE");
     mowgli_timer_destroy(base_eventloop, expire_timer);
 }
@@ -62,27 +65,27 @@ kline_t* _syn_find_kline(const char *user, const char *host)
     return NULL;
 }
 
-static void syn_m_kline(sourceinfo_t *si, int parc, char **parv)
+static void syn_add_kline(const char *setter, char *user, char *host, int duration, char *reason)
 {
-    if (_syn_find_kline(parv[2], parv[3]))
+    if (_syn_find_kline(user, host))
     {
-        syn_debug(3, "Duplicate K:line %s@%s", parv[2], parv[3]);
+        syn_debug(3, "Duplicate K:line %s@%s", user, host);
         return;
     }
 
-    if (parv[3][0] == '*' && parv[3][1] == '\0')
+    if (host[0] == '*' && host[1] == '\0')
     {
-        wallops("%s is an idiot. Dropping *@* kline.", si->su->nick);
+        wallops("%s is an idiot. Dropping *@* kline.", setter);
         return;
     }
 
     kline_t *k = mowgli_heap_alloc(ircd_kline_heap);
-    k->duration = atoi(parv[1]);
+    k->duration = duration;
     k->settime = CURRTIME;
     k->expires = CURRTIME + k->duration;
-    k->user = sstrdup(parv[2]);
-    k->host = sstrdup(parv[3]);
-    k->reason = sstrdup(parv[4]);
+    k->user = sstrdup(user);
+    k->host = sstrdup(host);
+    k->reason = sstrdup(reason);
 
     char *p;
     if (NULL != (p = strchr(k->reason, '|')))
@@ -105,12 +108,10 @@ static void syn_m_kline(sourceinfo_t *si, int parc, char **parv)
     syn_debug(1, "Added K:line %s@%s (%s)", k->user, k->host, k->reason);
 }
 
-static void syn_m_unkline(sourceinfo_t *si, int parc, char **parv)
+static void syn_remove_kline(char *user, char *host)
 {
     mowgli_node_t *n, *tn;
     kline_t *k;
-
-    const char *user = parv[1], *host = parv[2];
 
     kline_t *removed = mowgli_patricia_delete(ircd_klines, host);
     if (removed)
@@ -278,4 +279,33 @@ void _syn_kill_or_kline(user_t *victim, int duration, const char *reason, ...)
     va_end(ap);
 }
 
+static void syn_m_kline(sourceinfo_t *si, int parc, char **parv)
+{
+    syn_add_kline(si->su->nick, parv[2], parv[3], atoi(parv[1]), parv[4]);
+}
 
+static void syn_m_unkline(sourceinfo_t *si, int parc, char **parv)
+{
+    syn_remove_kline(parv[1], parv[2]);
+}
+
+static void syn_m_ban(sourceinfo_t *si, int parc, char **parv)
+{
+    if (parv[1][0] != 'K')
+    {
+        // Not a K:line; ignore
+        return;
+    }
+    
+    char *user = parv[2], *host = parv[3], *setter = parv[7], *reason = parv[8];
+    int creation = atoi(parv[4]), duration = atoi(parv[5]); // lifetime = atoi(parv[6]);
+
+    if (creation + duration > CURRTIME)
+    {
+        syn_add_kline(setter, user, host, duration, reason);
+    }
+    else
+    {
+        syn_remove_kline(user, host);
+    }
+}
