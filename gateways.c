@@ -138,6 +138,37 @@ static void check_user(hook_user_nick_t *data, bool isnewuser)
         return;
     }
 
+    char looked_up_hostname[HOSTLEN];
+
+    if (!p)
+    {
+        syn_debug(3, "no hostname found for %s!%s@%s[%s]; doing reverse lookup", u->nick, u->user, u->host, u->gecos);
+
+        // There was no hostname, only an IP. This can happen when the hostname is too long to fit in a gecos field.
+        // Do a reverse lookup and see whether the hostname is also klined.
+        // Because we're decoding this from an eight-char hex ip, it can only be ipv4.
+        struct sockaddr_in sa;
+        sa.sin_family = AF_INET;
+       sa.sin_port = 6667;
+        inet_aton(identhost, &sa.sin_addr);
+
+        if (0 == getnameinfo((struct sockaddr *)&sa, sizeof sa, looked_up_hostname, sizeof looked_up_hostname, NULL, 0, NI_NAMEREQD))
+        {
+            syn_debug(3, "got reverse lookup: %s", looked_up_hostname);
+            if ((k = syn_find_kline(NULL, looked_up_hostname)))
+            {
+                syn_report("Killing user %s; realname host matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
+                syn_kill(u, "Your reported hostname [%s] is banned: %s", p, k->reason);
+                data->u = NULL;
+                return;
+            }
+
+            p = looked_up_hostname;
+        }
+        else
+            syn_debug(3, "no reverse lookup");
+    }
+
     // As above, but for gecos hostnames
     syn_kline_check_data_t d = { gecos, u };
     hook_call_event("syn_kline_check", &d);
