@@ -81,7 +81,7 @@ static void tor_newuser(hook_user_nick_t *data)
     if (!u)
         return;
 
-    if (is_internal_client(u) || *u->ip == '\0')
+    if (is_internal_client(u) || !u->ip || *u->ip == '\0')
         return;
 
     syn_kline_check_data_t d = { u->ip, u, 0 };

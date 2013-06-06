@@ -254,6 +254,7 @@ void _modinit(module_t *m)
 
     service_named_bind_command("syn", &syn_facility);
 
+    syn_facility_cmds = mowgli_patricia_create(strcasecanon);
     command_add(&syn_facility_list, syn_facility_cmds);
     command_add(&syn_facility_add, syn_facility_cmds);
     command_add(&syn_facility_del, syn_facility_cmds);
@@ -280,6 +281,8 @@ void _moddeinit(module_unload_intent_t intent)
     mowgli_dictionary_destroy(facilities, free_facility, NULL);
     mowgli_heap_destroy(facility_heap);
     mowgli_heap_destroy(blacklist_heap);
+
+    mowgli_patricia_destroy(syn_facility_cmds, NULL, NULL);
 
     service_named_unbind_command("syn", &syn_facility);
 
@@ -707,6 +710,12 @@ void syn_cmd_facility_addbl(sourceinfo_t *si, int parc, char **parv)
     bl_entry_t *bl = mowgli_heap_alloc(blacklist_heap);
     bl->regex = sstrdup(parv[1]);
     bl->re = regex_create(bl->regex, AREGEX_ICASE | AREGEX_PCRE);
+
+    if (! bl->re)
+    {
+        command_fail(si, fault_badparams, "Failed to compile regex \"%s\"", bl->regex);
+        return;
+    }
 
     mowgli_node_add(bl, mowgli_node_create(), &f->blacklist);
 
