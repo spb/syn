@@ -57,5 +57,6 @@ typedef struct
 #define SYN_UF_FACILITY_USER    0x80000000
 #define SYN_UF_NO_GATEWAY_IP    0x40000000
 
+#include "syn_hooktypes.h"
 
 #endif
