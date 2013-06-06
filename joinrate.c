@@ -34,7 +34,7 @@ typedef struct
 } channelentry;
 
 mowgli_patricia_t *channellist;
-BlockHeap *channelheap;
+mowgli_heap_t *channelheap;
 static void free_channelentry(const char *, void *data, void *);
 
 void load_rate_settings()
@@ -74,7 +74,7 @@ void load_rate_settings()
         channelentry *ce = mowgli_patricia_retrieve(channellist, chname);
         if (!ce)
         {
-            ce = BlockHeapAlloc(channelheap);
+            ce = mowgli_heap_alloc(channelheap);
             strncpy(ce->chname, chname, CHANNELLEN);
             ce->use_custom = true;
             mowgli_patricia_add(channellist, chname, ce);
@@ -109,14 +109,14 @@ void _modinit(module_t *m)
 {
     use_syn_main_symbols(m);
 
-    command_add(&syn_setrate, syn_cmdtree);
-    command_add(&syn_showrate, syn_cmdtree);
+    service_named_bind_command("syn", &syn_setrate);
+    service_named_bind_command("syn", &syn_showrate);
 
     hook_add_event("channel_join");
     hook_add_channel_join(syn_ratecheck);
 
     channellist = mowgli_patricia_create(noopcanon);
-    channelheap = BlockHeapCreate(sizeof(channelentry), HEAP_USER);
+    channelheap = mowgli_heap_create(sizeof(channelentry), 512, BH_NOW);
 
     default_rate = 5;
     default_burst = 5;
@@ -125,21 +125,21 @@ void _modinit(module_t *m)
     load_rate_settings();
 }
 
-void _moddeinit()
+void _moddeinit(module_unload_intent_t intent)
 {
     save_rate_settings();
 
     mowgli_patricia_destroy(channellist, free_channelentry, NULL);
 
-    command_delete(&syn_setrate, syn_cmdtree);
-    command_delete(&syn_showrate, syn_cmdtree);
+    service_named_unbind_command("syn", &syn_setrate);
+    service_named_unbind_command("syn", &syn_showrate);
 
     hook_del_channel_join(syn_ratecheck);
 }
 
 static void free_channelentry(const char *key, void *data, void *privdata)
 {
-    BlockHeapFree(channelheap, data);
+    mowgli_heap_free(channelheap, data);
 }
 
 static void syn_ratecheck(hook_channel_joinpart_t *data)
@@ -153,7 +153,7 @@ static void syn_ratecheck(hook_channel_joinpart_t *data)
     channelentry *ce = mowgli_patricia_retrieve(channellist, cu->chan->name);
     if (!ce)
     {
-        ce = BlockHeapAlloc(channelheap);
+        ce = mowgli_heap_alloc(channelheap);
         strncpy(ce->chname, cu->chan->name, CHANNELLEN);
         mowgli_patricia_add(channellist, cu->chan->name, ce);
     }
@@ -258,7 +258,7 @@ static void syn_cmd_setrate(sourceinfo_t *si, int parc, char **parv)
 
     if (!ce)
     {
-        ce = BlockHeapAlloc(channelheap);
+        ce = mowgli_heap_alloc(channelheap);
         strncpy(ce->chname, parv[0], CHANNELLEN);
         mowgli_patricia_add(channellist, parv[0], ce);
     }

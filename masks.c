@@ -24,6 +24,8 @@ command_t syn_listmask = { "LISTMASK", N_("Displays configured mask lists"), "sy
 static unsigned int lethal_mask_duration = 3600*24;
 static char *lethal_mask_message = NULL;
 
+static mowgli_eventloop_timer_t *expire_masks_timer;
+
 typedef enum
 {
     mask_exempt,
@@ -45,7 +47,7 @@ typedef struct
     char setter[NICKLEN*2+2];
 } mask_t;
 
-list_t masks;
+mowgli_list_t masks;
 
 struct {
     const char *s;
@@ -75,8 +77,8 @@ mask_type mask_type_from_string(const char *s)
 
 static void check_expiry(void *v)
 {
-    node_t *n, *tn;
-    LIST_FOREACH_SAFE(n, tn, masks.head)
+    mowgli_node_t *n, *tn;
+    MOWGLI_LIST_FOREACH_SAFE(n, tn, masks.head)
     {
         mask_t *m = n->data;
 
@@ -89,13 +91,13 @@ static void check_expiry(void *v)
         regex_destroy(m->re);
         free(m->regex);
         free(m);
-        node_del(n, &masks);
+        mowgli_node_delete(n, &masks);
     }
 }
 
 static void save_maskdb()
 {
-    node_t *n;
+    mowgli_node_t *n;
     FILE *f = fopen(DATADIR "/masks.db", "w");
     if (!f)
     {
@@ -103,7 +105,7 @@ static void save_maskdb()
         return;
     }
 
-    LIST_FOREACH(n, masks.head)
+    MOWGLI_LIST_FOREACH(n, masks.head)
     {
         mask_t *m = n->data;
 
@@ -153,7 +155,7 @@ static void load_maskdb()
         mask->expires = expires;
         mask->type = type;
 
-        node_add(mask, node_create(), &masks);
+        mowgli_node_add(mask, mowgli_node_create(), &masks);
     }
 
     fclose(f);
@@ -165,42 +167,40 @@ void _modinit(module_t *m)
     use_syn_util_symbols(m);
     use_syn_kline_symbols(m);
 
-    lethal_mask_message = sstrdup("Banned");
+    add_uint_conf_item("lethalmask_duration", &syn->conf_table, 0, &lethal_mask_duration, 0, (unsigned int)-1, 3600*24);
+    add_dupstr_conf_item("lethalmask_message", &syn->conf_table, 0, &lethal_mask_message, "Banned");
 
-    add_uint_conf_item("lethalmask_duration", syn_conftable, &lethal_mask_duration, 0, (unsigned int)-1);
-    add_dupstr_conf_item("lethalmask_message", syn_conftable, &lethal_mask_message);
-
-    command_add(&syn_addmask, syn_cmdtree);
-    command_add(&syn_delmask, syn_cmdtree);
-    command_add(&syn_setmask, syn_cmdtree);
-    command_add(&syn_listmask, syn_cmdtree);
+    service_named_bind_command("syn", &syn_addmask);
+    service_named_bind_command("syn", &syn_delmask);
+    service_named_bind_command("syn", &syn_setmask);
+    service_named_bind_command("syn", &syn_listmask);
 
     hook_add_event("user_nickchange");
     hook_add_user_nickchange(masks_newuser);
     hook_add_event("user_add");
     hook_add_user_add(masks_newuser);
 
-    event_add("masks_check_expiry", check_expiry, NULL, 60);
+    expire_masks_timer = mowgli_timer_add(base_eventloop, "masks_check_expiry", check_expiry, NULL, 60);
 
     load_maskdb();
 }
 
-void _moddeinit()
+void _moddeinit(module_unload_intent_t intent)
 {
     save_maskdb();
 
-    command_delete(&syn_addmask, syn_cmdtree);
-    command_delete(&syn_delmask, syn_cmdtree);
-    command_delete(&syn_setmask, syn_cmdtree);
-    command_delete(&syn_listmask, syn_cmdtree);
+    service_named_unbind_command("syn", &syn_addmask);
+    service_named_unbind_command("syn", &syn_delmask);
+    service_named_unbind_command("syn", &syn_setmask);
+    service_named_unbind_command("syn", &syn_listmask);
 
-    del_conf_item("lethalmask_duration", syn_conftable);
-    del_conf_item("lethalmask_message", syn_conftable);
+    del_conf_item("lethalmask_duration", &syn->conf_table);
+    del_conf_item("lethalmask_message", &syn->conf_table);
 
     hook_del_user_add(masks_newuser);
     hook_del_user_nickchange(masks_newuser);
 
-    event_delete(check_expiry, NULL);
+    mowgli_timer_destroy(base_eventloop, expire_masks_timer);
 }
 
 void masks_newuser(hook_user_nick_t *data)
@@ -217,8 +217,8 @@ void masks_newuser(hook_user_nick_t *data)
     int blocked = 0, exempt = 0;
     char *suspicious_regex = NULL, *blocked_regex = NULL;
 
-    node_t *n;
-    LIST_FOREACH(n, masks.head)
+    mowgli_node_t *n;
+    MOWGLI_LIST_FOREACH(n, masks.head)
     {
         mask_t *m = n->data;
 
@@ -313,8 +313,8 @@ void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv)
         duration = syn_parse_duration(++sduration);
     }
 
-    node_t *n;
-    LIST_FOREACH(n, masks.head)
+    mowgli_node_t *n;
+    MOWGLI_LIST_FOREACH(n, masks.head)
     {
         mask_t *m = n->data;
 
@@ -345,7 +345,7 @@ void syn_cmd_addmask(sourceinfo_t *si, int parc, char **parv)
     newmask->added = CURRTIME;
     strncpy(newmask->setter, get_oper_name(si), sizeof(newmask->setter));
 
-    node_add(newmask, node_create(), &masks);
+    mowgli_node_add(newmask, mowgli_node_create(), &masks);
 
     syn_report("\002ADDMASK\002 %s (%s) by %s, expires %s",
             pattern, stype, get_oper_name(si), syn_format_expiry(newmask->expires));
@@ -376,8 +376,8 @@ void syn_cmd_delmask(sourceinfo_t *si, int parc, char **parv)
         return;
     }
 
-    node_t *n, *tn;
-    LIST_FOREACH_SAFE(n, tn, masks.head)
+    mowgli_node_t *n, *tn;
+    MOWGLI_LIST_FOREACH_SAFE(n, tn, masks.head)
     {
         mask_t *m = n->data;
         if (0 == strcmp(pattern, m->regex))
@@ -387,7 +387,7 @@ void syn_cmd_delmask(sourceinfo_t *si, int parc, char **parv)
             regex_destroy(m->re);
             free(m->regex);
             free(m);
-            node_del(n, &masks);
+            mowgli_node_delete(n, &masks);
 
             save_maskdb();
 
@@ -419,9 +419,9 @@ void syn_cmd_setmask(sourceinfo_t *si, int parc, char **parv)
         return;
     }
 
-    node_t *n, *tn;
+    mowgli_node_t *n, *tn;
     mask_t *m;
-    LIST_FOREACH_SAFE(n, tn, masks.head)
+    MOWGLI_LIST_FOREACH_SAFE(n, tn, masks.head)
     {
         m = n->data;
         if (0 == strcmp(pattern, m->regex))
@@ -492,8 +492,8 @@ void syn_cmd_listmask(sourceinfo_t *si, int parc, char **parv)
 
     int count = 0;
 
-    node_t *n;
-    LIST_FOREACH(n, masks.head)
+    mowgli_node_t *n;
+    MOWGLI_LIST_FOREACH(n, masks.head)
     {
         mask_t *m = n->data;
 

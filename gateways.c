@@ -44,7 +44,7 @@ void _modinit(module_t *m)
     check_all_users(NULL);
 }
 
-void _moddeinit()
+void _moddeinit(module_unload_intent_t intent)
 {
     hook_del_user_add(gateway_newuser);
     hook_del_hook("syn_kline_added", check_all_users);
@@ -63,7 +63,7 @@ static void check_user(hook_user_nick_t *data, bool isnewuser)
     if (u->flags & SYN_UF_NO_GATEWAY_IP)
         return;
 
-    char *ident = u->user;
+    const char *ident = u->user;
     if (*ident == '~')
         ++ident;
 

@@ -3,7 +3,7 @@ include Makefile.config
 PREFIX ?= $(prefix)
 ATHEME ?= $(source)
 
-ATHEME_CFLAGS = -I$(ATHEME)/include -I$(ATHEME)/libmowgli/src/libmowgli -DDATADIR=\"$(PREFIX)/etc\"
+ATHEME_CFLAGS = -I$(ATHEME)/include -I$(ATHEME)/libmowgli-2/src/libmowgli -DDATADIR=\"$(PREFIX)/etc\"
 
 SOURCES = $(wildcard *.c)
 MODULES = $(patsubst %.c,%.so,$(SOURCES))

@@ -17,14 +17,12 @@ void _modinit(module_t *m)
 {
     use_syn_main_symbols(m);
 
-    command_add(&syn_help, syn_cmdtree);
-    help_addentry(syn_helptree, "HELP", "help/help", NULL);
+    service_named_bind_command("syn", &syn_help);
 }
 
-void _moddeinit()
+void _moddeinit(module_unload_intent_t intent)
 {
-    command_delete(&syn_help, syn_cmdtree);
-    help_delentry(syn_helptree, "HELP");
+    service_named_unbind_command("syn", &syn_help);
 }
 
 /* HELP <command> [params] */
@@ -39,7 +37,7 @@ void syn_cmd_help(sourceinfo_t *si, int parc, char *parv[])
         command_success_nodata(si, "\2%s\2 is a utility service to control access to the network.", syn->nick);
         command_success_nodata(si, " ");
 
-        command_help(si, syn_cmdtree);
+        command_help(si, syn->commands);
 
         command_success_nodata(si, _("***** \2End of Help\2 *****"));
 
@@ -47,5 +45,5 @@ void syn_cmd_help(sourceinfo_t *si, int parc, char *parv[])
     }
 
     /* take the command through the hash table */
-    help_display(si, command, syn_helptree);
+    help_display(si, syn, command, syn->commands);
 }

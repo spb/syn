@@ -14,7 +14,7 @@ void facility_newuser(hook_user_nick_t *data);
 
 void syn_cmd_facility(sourceinfo_t *si, int parc, char **parv);
 
-list_t syn_facility_cmds;
+mowgli_patricia_t *syn_facility_cmds;
 
 command_t syn_facility = { "FACILITY", N_("Inspects or modifies facility lists"), "syn:facility", 4, syn_cmd_facility };
 
@@ -26,13 +26,13 @@ static void syn_cmd_facility_addbl(sourceinfo_t *si, int parc, char **parv);
 static void syn_cmd_facility_rmbl(sourceinfo_t *si, int parc, char **parv);
 static void syn_cmd_facility_show(sourceinfo_t *si, int parc, char **parv);
 
-command_t syn_facility_list = { "LIST", N_("Displays defined facilities"), "syn:facility", 1, syn_cmd_facility_list };
-command_t syn_facility_add = { "ADD", N_("Configures a new facility"), "syn:facility:admin", 2, syn_cmd_facility_add };
-command_t syn_facility_del = { "DEL", N_("Removes a configured facility"), "syn:facility:admin", 1, syn_cmd_facility_del };
-command_t syn_facility_set = { "SET", N_("Modifies a configured facility"), "syn:facility:admin", 3, syn_cmd_facility_set };
-command_t syn_facility_addbl = { "ADDBL", N_("Adds a blacklist entry for a faciltiy"), "syn:facility", 2, syn_cmd_facility_addbl };
-command_t syn_facility_rmbl = { "RMBL", N_("Removes a blacklist entry from a facility"), "syn:facility", 2, syn_cmd_facility_rmbl };
-command_t syn_facility_show = { "SHOW", N_("Displays information about a facility"), "syn:facility", 1, syn_cmd_facility_show };
+command_t syn_facility_list = { "LIST", N_("Displays defined facilities"), "syn:facility", 1, syn_cmd_facility_list, { .path = "syn/facility_list" } };
+command_t syn_facility_add = { "ADD", N_("Configures a new facility"), "syn:facility:admin", 2, syn_cmd_facility_add, { .path = "syn/facility_add" } };
+command_t syn_facility_del = { "DEL", N_("Removes a configured facility"), "syn:facility:admin", 1, syn_cmd_facility_del, { .path = "syn/facility_del" } };
+command_t syn_facility_set = { "SET", N_("Modifies a configured facility"), "syn:facility:admin", 3, syn_cmd_facility_set, { .path = "syn/facility_set" } };
+command_t syn_facility_addbl = { "ADDBL", N_("Adds a blacklist entry for a faciltiy"), "syn:facility", 2, syn_cmd_facility_addbl, { .path = "syn/facility_addbl" } };
+command_t syn_facility_rmbl = { "RMBL", N_("Removes a blacklist entry from a facility"), "syn:facility", 2, syn_cmd_facility_rmbl, { .path = "syn/facility_rmbl" } };
+command_t syn_facility_show = { "SHOW", N_("Displays information about a facility"), "syn:facility", 1, syn_cmd_facility_show, { .path = "syn/facility_show" } };
 
 typedef enum
 {
@@ -88,7 +88,7 @@ typedef struct
 
     facility_cloak_type cloaking;
 
-    list_t blacklist;
+    mowgli_list_t blacklist;
 
     time_t throttle_latest;
 } facility_t;
@@ -104,7 +104,7 @@ mowgli_dictionary_t *facilities;
 unsigned int block_report_interval = 60;
 time_t last_block_report = 0;
 
-BlockHeap *facility_heap, *blacklist_heap;
+mowgli_heap_t *facility_heap, *blacklist_heap;
 
 // Horrible hack to work around the race condition when
 // NickServ and syn both cloak somebody.
@@ -119,20 +119,20 @@ void free_facility(mowgli_dictionary_elem_t *e, void *v)
     if (f->throttlemessage)
         free(f->throttlemessage);
 
-    node_t *n, *tn;
-    LIST_FOREACH_SAFE(n, tn, f->blacklist.head)
+    mowgli_node_t *n, *tn;
+    MOWGLI_LIST_FOREACH_SAFE(n, tn, f->blacklist.head)
     {
         bl_entry_t *bl = n->data;
         free(bl->regex);
         regex_destroy(bl->re);
 
-        BlockHeapFree(blacklist_heap, bl);
+        mowgli_heap_free(blacklist_heap, bl);
 
-        node_del(n, &f->blacklist);
-        node_free(n);
+        mowgli_node_delete(n, &f->blacklist);
+        mowgli_node_free(n);
     }
 
-    BlockHeapFree(facility_heap, f);
+    mowgli_heap_free(facility_heap, f);
 }
 
 void load_facilities()
@@ -153,7 +153,7 @@ void load_facilities()
         strip(token);
         if (0 == strcmp(token, "F"))
         {
-            curr_facility = BlockHeapAlloc(facility_heap);
+            curr_facility = mowgli_heap_alloc(facility_heap);
             char *hostpart = strtok(NULL, " ");
             char *cloaking = strtok(NULL, " ");
             char *blocked = strtok(NULL, " ");
@@ -198,10 +198,10 @@ void load_facilities()
 
             strip(regex);
 
-            bl_entry_t *bl = BlockHeapAlloc(blacklist_heap);
+            bl_entry_t *bl = mowgli_heap_alloc(blacklist_heap);
             bl->regex = sstrdup(regex);
             bl->re = regex_create(bl->regex, AREGEX_ICASE | AREGEX_PCRE);
-            node_add(bl, node_create(), &curr_facility->blacklist);
+            mowgli_node_add(bl, mowgli_node_create(), &curr_facility->blacklist);
         }
     }
     fclose(f);
@@ -227,8 +227,8 @@ void save_facilities()
             fprintf(db, "BM %s\n", f->blockmessage);
         if (f->throttlemessage)
             fprintf(db, "TM %s\n", f->throttlemessage);
-        node_t *n;
-        LIST_FOREACH(n, f->blacklist.head)
+        mowgli_node_t *n;
+        MOWGLI_LIST_FOREACH(n, f->blacklist.head)
         {
             bl_entry_t *bl = n->data;
             fprintf(db, "BL %s\n", bl->regex);
@@ -252,52 +252,36 @@ void _modinit(module_t *m)
     hook_add_event("incoming_host_change");
     hook_add_hook("incoming_host_change", on_host_change);
 
-    command_add(&syn_facility, syn_cmdtree);
+    service_named_bind_command("syn", &syn_facility);
 
-    command_add(&syn_facility_list, &syn_facility_cmds);
-    command_add(&syn_facility_add, &syn_facility_cmds);
-    command_add(&syn_facility_del, &syn_facility_cmds);
-    command_add(&syn_facility_set, &syn_facility_cmds);
-    command_add(&syn_facility_addbl, &syn_facility_cmds);
-    command_add(&syn_facility_rmbl, &syn_facility_cmds);
-    command_add(&syn_facility_show, &syn_facility_cmds);
+    command_add(&syn_facility_list, syn_facility_cmds);
+    command_add(&syn_facility_add, syn_facility_cmds);
+    command_add(&syn_facility_del, syn_facility_cmds);
+    command_add(&syn_facility_set, syn_facility_cmds);
+    command_add(&syn_facility_addbl, syn_facility_cmds);
+    command_add(&syn_facility_rmbl, syn_facility_cmds);
+    command_add(&syn_facility_show, syn_facility_cmds);
 
-    help_addentry(syn_helptree, "FACILITY", "help/syn/facility", NULL);
-    help_addentry(syn_helptree, "FACILITY ADD", "help/syn/facility_add", NULL);
-    help_addentry(syn_helptree, "FACILITY DEL", "help/syn/facility_del", NULL);
-    help_addentry(syn_helptree, "FACILITY SET", "help/syn/facility_set", NULL);
-    help_addentry(syn_helptree, "FACILITY ADDBL", "help/syn/facility_addbl", NULL);
-    help_addentry(syn_helptree, "FACILITY RMBL", "help/syn/facility_rmbl", NULL);
-    help_addentry(syn_helptree, "FACILITY LIST", "help/syn/facility_list", NULL);
+    facility_heap = mowgli_heap_create(sizeof(facility_t), 64, BH_NOW);
+    blacklist_heap = mowgli_heap_create(sizeof(bl_entry_t), 64, BH_NOW);
+    facilities = mowgli_dictionary_create((mowgli_dictionary_comparator_func_t)strcasecmp);
 
-    facility_heap = BlockHeapCreate(sizeof(facility_t), HEAP_USER);
-    blacklist_heap = BlockHeapCreate(sizeof(bl_entry_t), HEAP_USER);
-    facilities = mowgli_dictionary_create(strcasecmp);
-
-    add_uint_conf_item("FACILITY_REPORT_RATE", syn_conftable, &block_report_interval, 0, 3600);
+    add_uint_conf_item("FACILITY_REPORT_RATE", &syn->conf_table, 0, &block_report_interval, 0, 3600, 60);
 
     load_facilities();
 }
 
-void _moddeinit()
+void _moddeinit(module_unload_intent_t intent)
 {
     save_facilities();
 
-    del_conf_item("FACILITY_REPORT_RATE", syn_conftable);
+    del_conf_item("FACILITY_REPORT_RATE", &syn->conf_table);
 
     mowgli_dictionary_destroy(facilities, free_facility, NULL);
-    BlockHeapDestroy(facility_heap);
-    BlockHeapDestroy(blacklist_heap);
+    mowgli_heap_destroy(facility_heap);
+    mowgli_heap_destroy(blacklist_heap);
 
-    help_delentry(syn_helptree, "FACILITY");
-    help_delentry(syn_helptree, "FACILITY ADD");
-    help_delentry(syn_helptree, "FACILITY DEL");
-    help_delentry(syn_helptree, "FACILITY SET");
-    help_delentry(syn_helptree, "FACILITY ADDBL");
-    help_delentry(syn_helptree, "FACILITY RMBL");
-    help_delentry(syn_helptree, "FACILITY LIST");
-
-    command_delete(&syn_facility, syn_cmdtree);
+    service_named_unbind_command("syn", &syn_facility);
 
     hook_del_user_add(facility_newuser);
     hook_del_hook("incoming_host_change", on_host_change);
@@ -362,8 +346,8 @@ void facility_newuser(hook_user_nick_t *data)
         char nuh[NICKLEN+USERLEN+HOSTLEN+GECOSLEN];
         snprintf(nuh, sizeof(nuh), "%s!%s@%s %s", u->nick, u->user, u->host, u->gecos);
 
-        node_t *n;
-        LIST_FOREACH(n, f->blacklist.head)
+        mowgli_node_t *n;
+        MOWGLI_LIST_FOREACH(n, f->blacklist.head)
         {
             bl_entry_t *bl = n->data;
             if (!bl->re)
@@ -435,8 +419,7 @@ void facility_newuser(hook_user_nick_t *data)
     {
         if (0 == strncmp(u->vhost, "unaffiliated", 12))
         {
-            strncpy(u->vhost, u->host, sizeof(u->vhost));
-            sethost_sts(syn->me, u, u->vhost);
+            user_sethost(syn->me, u, u->host);
         }
 
         if (dospam && !me.bursting)
@@ -444,7 +427,8 @@ void facility_newuser(hook_user_nick_t *data)
         return;
     }
 
-    strncpy(u->vhost, u->host, HOSTLEN);
+    char new_vhost[HOSTLEN];
+    mowgli_strlcpy(new_vhost, u->host, HOSTLEN);
     switch (cloak)
     {
         case facility_cloak_none:
@@ -453,10 +437,10 @@ void facility_newuser(hook_user_nick_t *data)
 
         case facility_cloak_hex_ident:
             {
-                char *ipstart = strstr(u->vhost, "session");
+                char *ipstart = strstr(new_vhost, "session");
                 if (ipstart == NULL)
                 {
-                    syn_debug(2, "Hex IP cloaking used for %s, but I couldn't find a session marker in %s", u->nick, u->vhost);
+                    syn_debug(2, "Hex IP cloaking used for %s, but I couldn't find a session marker in %s", u->nick, new_vhost);
                     break;
                 }
                 const char *ident = u->user;
@@ -466,10 +450,10 @@ void facility_newuser(hook_user_nick_t *data)
 
                 if (ip)
                 {
-                    strncpy(ipstart, "ip.", u->vhost + HOSTLEN - ipstart);
+                    strncpy(ipstart, "ip.", new_vhost + HOSTLEN - ipstart);
                     ipstart += 3;
-                    strncpy(ipstart, ip, u->vhost + HOSTLEN - ipstart);
-                    sethost_sts(syn->me, u, u->vhost);
+                    strncpy(ipstart, ip, new_vhost + HOSTLEN - ipstart);
+                    user_sethost(syn->me, u, new_vhost);
                     break;
                 }
                 // If we couldn't decode an IP, fall through...
@@ -478,14 +462,14 @@ void facility_newuser(hook_user_nick_t *data)
             }
         case facility_cloak_random:
             {
-                char *randstart = strstr(u->vhost, "session");
+                char *randstart = strstr(new_vhost, "session");
                 if (randstart == NULL)
                 {
-                    syn_debug(2, "Random cloaking used for %s, but I couldn't find a session marker in %s", u->nick, u->vhost);
+                    syn_debug(2, "Random cloaking used for %s, but I couldn't find a session marker in %s", u->nick, new_vhost);
                     break;
                 }
-                strncpy(randstart, get_random_host_part(), u->vhost + HOSTLEN - randstart);
-                sethost_sts(syn->me, u, u->vhost);
+                strncpy(randstart, get_random_host_part(), new_vhost + HOSTLEN - randstart);
+                user_sethost(syn->me, u, new_vhost);
                 break;
             }
     }
@@ -506,7 +490,7 @@ void syn_cmd_facility(sourceinfo_t *si, int parc, char **parv)
         return;
     }
 
-    c = command_find(&syn_facility_cmds, cmd);
+    c = command_find(syn_facility_cmds, cmd);
     if (c == NULL)
     {
         command_fail(si, fault_badparams, "Invalid command. Possible commands are LIST ADD DEL SET ADDBL RMBL");
@@ -551,7 +535,7 @@ void syn_cmd_facility_add(sourceinfo_t *si, int parc, char **parv)
     const char *hostpart = parv[0];
     facility_cloak_type cloak = cloak_type_from_string(parc > 1 ? parv[1] : NULL);
 
-    facility_t *f = BlockHeapAlloc(facility_heap);
+    facility_t *f = mowgli_heap_alloc(facility_heap);
     strncpy(f->hostpart, hostpart, HOSTLEN);
     f->cloaking = cloak;
 
@@ -720,11 +704,11 @@ void syn_cmd_facility_addbl(sourceinfo_t *si, int parc, char **parv)
         return;
     }
 
-    bl_entry_t *bl = BlockHeapAlloc(blacklist_heap);
+    bl_entry_t *bl = mowgli_heap_alloc(blacklist_heap);
     bl->regex = sstrdup(parv[1]);
     bl->re = regex_create(bl->regex, AREGEX_ICASE | AREGEX_PCRE);
 
-    node_add(bl, node_create(), &f->blacklist);
+    mowgli_node_add(bl, mowgli_node_create(), &f->blacklist);
 
     syn_report("\002FACILITY ADDBL\002 %s to %s by %s", bl->regex, f->hostpart, get_oper_name(si));
     command_success_nodata(si, "Added blacklist \"%s\" for %s", bl->regex, f->hostpart);
@@ -750,8 +734,8 @@ void syn_cmd_facility_rmbl(sourceinfo_t *si, int parc, char **parv)
         return;
     }
 
-    node_t *n, *tn;
-    LIST_FOREACH_SAFE(n, tn, f->blacklist.head)
+    mowgli_node_t *n, *tn;
+    MOWGLI_LIST_FOREACH_SAFE(n, tn, f->blacklist.head)
     {
         bl_entry_t *bl = n->data;
         if (0 != strcmp(parv[1], bl->regex))
@@ -760,10 +744,10 @@ void syn_cmd_facility_rmbl(sourceinfo_t *si, int parc, char **parv)
         free(bl->regex);
         regex_destroy(bl->re);
 
-        BlockHeapFree(blacklist_heap, bl);
+        mowgli_heap_free(blacklist_heap, bl);
 
-        node_del(n, &f->blacklist);
-        node_free(n);
+        mowgli_node_delete(n, &f->blacklist);
+        mowgli_node_free(n);
 
         syn_report("\002FACILITY RMBL\002 %s from %s by %s", parv[1], f->hostpart, get_oper_name(si));
         command_success_nodata(si, "Removed blacklist \"%s\" from %s", parv[1], f->hostpart);
@@ -799,8 +783,8 @@ void syn_cmd_facility_show(sourceinfo_t *si, int parc, char **parv)
     command_success_nodata(si, "Blacklist:");
 
     int count = 0;
-    node_t *n;
-    LIST_FOREACH(n, f->blacklist.head)
+    mowgli_node_t *n;
+    MOWGLI_LIST_FOREACH(n, f->blacklist.head)
     {
         bl_entry_t *bl = n->data;
         command_success_nodata(si, "[%d] %s", ++count, bl->regex);
@@ -820,7 +804,8 @@ static void on_host_change(void *vdata)
     {
         // Override the host change -- a facility cloak is being replaced by unaffiliated, or a facility by
         // another facility (this happens when removing a nickserv account vhost while a gateway user is logged in)
-        strlcpy(data->user->vhost, data->oldvhost, HOSTLEN);
+        strshare_unref(data->user->vhost);
+        data->user->vhost = strshare_get(data->oldvhost);
     }
     else
     {

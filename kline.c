@@ -11,8 +11,10 @@ DECLARE_MODULE_V1
 );
 
 mowgli_patricia_t *ircd_klines;
-list_t ircd_wildcard_klines;
-BlockHeap *ircd_kline_heap;
+mowgli_list_t ircd_wildcard_klines;
+mowgli_heap_t *ircd_kline_heap;
+
+mowgli_eventloop_timer_t *expire_timer = 0;
 
 static void syn_m_kline(sourceinfo_t *si, int parc, char **parv);
 static void syn_m_unkline(sourceinfo_t *si, int parc, char **parv);
@@ -25,24 +27,23 @@ void _modinit(module_t *m)
     use_syn_main_symbols(m);
 
     ircd_klines = mowgli_patricia_create(noopcanon);
-    ircd_kline_heap = BlockHeapCreate(sizeof(kline_t), 16);
+    ircd_kline_heap = mowgli_heap_create(sizeof(kline_t), 512, BH_NOW);
 
     hook_add_event("syn_kline_added");
 
-    kline_kill_reason = sstrdup("Banned");
-    add_dupstr_conf_item("KLINE_KILL_REASON", syn_conftable, &kline_kill_reason);
+    add_dupstr_conf_item("KLINE_KILL_REASON", &syn->conf_table, 0, &kline_kill_reason, "Banned");
 
     pcommand_add("KLINE", syn_m_kline, 5, MSRC_USER);
     pcommand_add("UNKLINE", syn_m_unkline, 3, MSRC_USER);
 
-    event_add("expire_ircd_klines", expire_klines, NULL, 120);
+    expire_timer = mowgli_timer_add(base_eventloop, "expire_ircd_klines", expire_klines, NULL, 120);
 }
 
-void _moddeinit()
+void _moddeinit(module_unload_intent_t intent)
 {
     pcommand_delete("KLINE");
     pcommand_delete("UNKLINE");
-    event_delete(expire_klines, NULL);
+    mowgli_timer_destroy(base_eventloop, expire_timer);
 }
 
 kline_t* _syn_find_kline(const char *user, const char *host)
@@ -51,8 +52,8 @@ kline_t* _syn_find_kline(const char *user, const char *host)
     if ((k = mowgli_patricia_retrieve(ircd_klines, host)))
         return k;
 
-    node_t *n;
-    LIST_FOREACH(n, ircd_wildcard_klines.head)
+    mowgli_node_t *n;
+    MOWGLI_LIST_FOREACH(n, ircd_wildcard_klines.head)
     {
         k = n->data;
         if (0 == match(k->host, host))
@@ -75,7 +76,7 @@ static void syn_m_kline(sourceinfo_t *si, int parc, char **parv)
         return;
     }
 
-    kline_t *k = BlockHeapAlloc(ircd_kline_heap);
+    kline_t *k = mowgli_heap_alloc(ircd_kline_heap);
     k->duration = atoi(parv[1]);
     k->settime = CURRTIME;
     k->expires = CURRTIME + k->duration;
@@ -91,8 +92,8 @@ static void syn_m_kline(sourceinfo_t *si, int parc, char **parv)
 
     if (strchr(k->host, '*') || strchr(k->host, '?'))
     {
-        node_t *n = node_create();
-        node_add(k, n, &ircd_wildcard_klines);
+        mowgli_node_t *n = mowgli_node_create();
+        mowgli_node_add(k, n, &ircd_wildcard_klines);
     }
     else
     {
@@ -106,37 +107,37 @@ static void syn_m_kline(sourceinfo_t *si, int parc, char **parv)
 
 static void syn_m_unkline(sourceinfo_t *si, int parc, char **parv)
 {
-    node_t *n, *tn;
+    mowgli_node_t *n, *tn;
     kline_t *k;
 
     const char *user = parv[1], *host = parv[2];
 
     kline_t *removed = mowgli_patricia_delete(ircd_klines, host);
     if (removed)
-        BlockHeapFree(ircd_kline_heap, removed);
+        mowgli_heap_free(ircd_kline_heap, removed);
 
-    LIST_FOREACH_SAFE(n, tn, ircd_wildcard_klines.head)
+    MOWGLI_LIST_FOREACH_SAFE(n, tn, ircd_wildcard_klines.head)
     {
         k = (kline_t*) n->data;
         if (0 == strcasecmp(k->user, user) &&
             0 == strcasecmp(k->host, host))
         {
             syn_debug(1, "Removing K:line on %s@%s", k->user, k->host);
-            node_del(n, &ircd_wildcard_klines);
+            mowgli_node_delete(n, &ircd_wildcard_klines);
             free(k->user);
             free(k->host);
             free(k->reason);
-            BlockHeapFree(ircd_kline_heap, k);
+            mowgli_heap_free(ircd_kline_heap, k);
         }
     }
 }
 
 static void expire_klines(void *unused)
 {
-    node_t *n, *tn;
+    mowgli_node_t *n, *tn;
     kline_t *k;
 
-    LIST_FOREACH_SAFE(n, tn, ircd_wildcard_klines.head)
+    MOWGLI_LIST_FOREACH_SAFE(n, tn, ircd_wildcard_klines.head)
     {
         k = (kline_t*) n->data;
 
@@ -146,11 +147,11 @@ static void expire_klines(void *unused)
         if (k->expires <= CURRTIME)
         {
             syn_debug(1, "Expiring K:line on %s@%s", k->user, k->host);
-            node_del(n, &ircd_wildcard_klines);
+            mowgli_node_delete(n, &ircd_wildcard_klines);
             free(k->user);
             free(k->host);
             free(k->reason);
-            BlockHeapFree(ircd_kline_heap, k);
+            mowgli_heap_free(ircd_kline_heap, k);
         }
     }
 
@@ -166,7 +167,7 @@ static void expire_klines(void *unused)
             free(k->user);
             free(k->host);
             free(k->reason);
-            BlockHeapFree(ircd_kline_heap, k);
+            mowgli_heap_free(ircd_kline_heap, k);
         }
     }
 }
@@ -179,7 +180,7 @@ static void _syn_vkline(const char *host, int duration, const char *reason, va_l
     char buf[BUFSIZE];
     vsnprintf(buf, BUFSIZE, reason, ap);
 
-    kline_t *k = BlockHeapAlloc(ircd_kline_heap);
+    kline_t *k = mowgli_heap_alloc(ircd_kline_heap);
     k->duration = duration;
     k->settime = CURRTIME;
     k->expires = CURRTIME + duration;
@@ -195,8 +196,8 @@ static void _syn_vkline(const char *host, int duration, const char *reason, va_l
 
     if (strchr(k->host, '*') || strchr(k->host, '?'))
     {
-        node_t *n = node_create();
-        node_add(k, n, &ircd_wildcard_klines);
+        mowgli_node_t *n = mowgli_node_create();
+        mowgli_node_add(k, n, &ircd_wildcard_klines);
     }
     else
     {

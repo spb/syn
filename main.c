@@ -11,9 +11,6 @@ static void syn_handler(sourceinfo_t *si, int parc, char *parv[]);
 static void syn_join_channel(void *unused);
 
 service_t *syn;
-list_t syn_cmdtree;
-list_t syn_helptree;
-list_t syn_conftable;
 
 struct
 {
@@ -27,33 +24,27 @@ void _modinit(module_t *m)
 {
 //  command_add(&syn_help, &syn_cmdtree);
 
-    help_addentry(&syn_helptree, "HELP", "help/help", NULL);
-    help_addentry(&syn_helptree, "LIST", "help/syn/list", NULL);
+    syn = service_add("syn", syn_handler);
+    service_set_chanmsg(syn, true);
 
     hook_add_event("config_ready");
     hook_add_config_ready((void(*)(void*))syn_join_channel);
     hook_add_server_eob((void(*)(server_t*))syn_join_channel);
 
-    add_dupstr_conf_item("CHANNEL", &syn_conftable, &syn_config.channel);
-    add_dupstr_conf_item("DEBUGCHANNEL", &syn_conftable, &syn_config.debugchannel);
-    add_uint_conf_item("DEBUG", &syn_conftable, &syn_config.debug, 0, 15);
-    add_uint_conf_item("VERBOSE", &syn_conftable, &syn_config.verbosity, 0, 15);
-
-    syn = service_add("syn", syn_handler, &syn_cmdtree, &syn_conftable);
-    service_set_chanmsg(syn, true);
+    add_dupstr_conf_item("CHANNEL", &syn->conf_table, 0, &syn_config.channel, 0);
+    add_dupstr_conf_item("DEBUGCHANNEL", &syn->conf_table, 0, &syn_config.debugchannel, 0);
+    add_uint_conf_item("DEBUG", &syn->conf_table, 0, &syn_config.debug, 0, 15, 0);
+    add_uint_conf_item("VERBOSE", &syn->conf_table, 0, &syn_config.verbosity, 0, 15, 0);
 }
 
-void _moddeinit()
+void _moddeinit(module_unload_intent_t intent)
 {
 //  command_delete(&syn_help, &syn_cmdtree);
 
-    help_delentry(&syn_helptree, "HELP");
-    help_delentry(&syn_helptree, "LIST");
-
-    del_conf_item("CHANNEL", &syn_conftable);
-    del_conf_item("DEBUGCHANNEL", &syn_conftable);
-    del_conf_item("DEBUG", &syn_conftable);
-    del_conf_item("VERBOSE", &syn_conftable);
+    del_conf_item("CHANNEL", &syn->conf_table);
+    del_conf_item("DEBUGCHANNEL", &syn->conf_table);
+    del_conf_item("DEBUG", &syn->conf_table);
+    del_conf_item("VERBOSE", &syn->conf_table);
 
     hook_del_config_ready((void(*)(void*))syn_join_channel);
     hook_del_server_eob((void(*)(server_t*))syn_join_channel);
@@ -79,7 +70,7 @@ static void syn_cmd_success_string(sourceinfo_t *si, const char *string, const c
 }
 
 
-static void syn_cmd_fail(sourceinfo_t *si, faultcode_t fault, const char *text)
+static void syn_cmd_fail(sourceinfo_t *si, cmd_faultcode_t fault, const char *text)
 {
     if (si->c)
         notice_channel_sts(si->service->me, si->c, text);
@@ -104,7 +95,7 @@ static void syn_handler(sourceinfo_t *si, int parc, char *parv[])
     }
 
     /* make a copy of the original for debugging */
-    strlcpy(orig, parv[parc - 1], BUFSIZE);
+    mowgli_strlcpy(orig, parv[parc - 1], BUFSIZE);
 
     // Is this a message to a channel?
     if (parv[0][0] == '#')
@@ -138,7 +129,7 @@ static void syn_handler(sourceinfo_t *si, int parc, char *parv[])
     si->v = &syn_si_vtable;
 
     /* take the command through the hash table */
-    command_exec_split(si->service, si, cmd, text, &syn_cmdtree);
+    command_exec_split(si->service, si, cmd, text, syn->commands);
 }
 
 static void syn_join_channel(void *unused)

@@ -20,8 +20,13 @@ static void load_tor_list();
 
 mowgli_patricia_t *torlist;
 
-unsigned int kline_duration = 24 * 3600;
+unsigned int kline_duration;
 char *kline_reason;
+
+const char *default_kline_reason = "Tor access to freenode is hidden service only. Mail kline@freenode.net with questions.";
+const unsigned int default_kline_duration = 24 * 3600;
+
+mowgli_eventloop_timer_t *update_tor_timer;
 
 void _modinit(module_t *m)
 {
@@ -31,21 +36,20 @@ void _modinit(module_t *m)
     use_syn_main_symbols(m);
     use_syn_kline_symbols(m);
 
-    command_add(&syn_checktor, syn_cmdtree);
+    service_named_bind_command("syn", &syn_checktor);
 
     hook_add_event("user_add");
     hook_add_user_add(tor_newuser);
     hook_add_event("syn_kline_check");
     hook_add_hook("syn_kline_check", tor_kline_check);
 
-    event_add("update_tor_list", load_tor_list, NULL, 120);
+    update_tor_timer = mowgli_timer_add(base_eventloop, "update_tor_list", load_tor_list, NULL, 120);
 
     load_tor_list();
 
-    kline_reason = sstrdup("Tor access to freenode is hidden service only. Mail kline@freenode.net with questions.");
 
-    add_dupstr_conf_item("TOR_KLINE_REASON", syn_conftable, &kline_reason);
-    add_uint_conf_item("TOR_KLINE_DURATION", syn_conftable, &kline_duration, 1, (unsigned int)-1);
+    add_dupstr_conf_item("TOR_KLINE_REASON", &syn->conf_table, 0, &kline_reason, default_kline_reason);
+    add_uint_conf_item("TOR_KLINE_DURATION", &syn->conf_table, 0, &kline_duration, 1, (unsigned int)-1, default_kline_duration);
 
     MOWGLI_PATRICIA_FOREACH(u, &state, userlist)
     {
@@ -54,19 +58,19 @@ void _modinit(module_t *m)
     }
 }
 
-void _moddeinit()
+void _moddeinit(module_unload_intent_t intent)
 {
     mowgli_patricia_destroy(torlist, NULL, NULL);
 
-    del_conf_item("TOR_KLINE_DURATION", syn_conftable);
-    del_conf_item("TOR_KLINE_REASON", syn_conftable);
+    del_conf_item("TOR_KLINE_DURATION", &syn->conf_table);
+    del_conf_item("TOR_KLINE_REASON", &syn->conf_table);
 
-    command_delete(&syn_checktor, syn_cmdtree);
+    service_named_unbind_command("syn", &syn_checktor);
 
     hook_del_user_add(tor_newuser);
     hook_del_hook("syn_kline_check", tor_kline_check);
 
-    event_delete(load_tor_list, NULL);
+    mowgli_timer_destroy(base_eventloop, update_tor_timer);
 }
 
 static void tor_newuser(hook_user_nick_t *data)
@@ -143,7 +147,7 @@ static void syn_cmd_checktor(sourceinfo_t *si, int parc, char **parv)
     }
 
     void *p;
-    char *test = parv[0];
+    const char *test = parv[0];
 
     if (strchr(parv[0], '.') == NULL)
     {
