@@ -35,7 +35,7 @@ void _modinit(module_t *m)
     add_dupstr_conf_item("KLINE_KILL_REASON", &syn->conf_table, 0, &kline_kill_reason, "Banned");
 
     pcommand_add("KLINE", syn_m_kline, 5, MSRC_USER);
-    pcommand_add("BAN", syn_m_ban, 8, MSRC_SERVER);
+    pcommand_add("BAN", syn_m_ban, 8, MSRC_USER | MSRC_SERVER);
     pcommand_add("UNKLINE", syn_m_unkline, 3, MSRC_USER);
 
     expire_timer = mowgli_timer_add(base_eventloop, "expire_ircd_klines", expire_klines, NULL, 120);
@@ -65,7 +65,7 @@ kline_t* _syn_find_kline(const char *user, const char *host)
     return NULL;
 }
 
-static void syn_add_kline(const char *setter, char *user, char *host, int duration, char *reason)
+static void syn_add_kline(const char *setter, const char *user, const char *host, int duration, const char *reason)
 {
     if (_syn_find_kline(user, host))
     {
@@ -108,7 +108,7 @@ static void syn_add_kline(const char *setter, char *user, char *host, int durati
     syn_debug(1, "Added K:line %s@%s (%s)", k->user, k->host, k->reason);
 }
 
-static void syn_remove_kline(char *user, char *host)
+static void syn_remove_kline(const char *user, const char *host)
 {
     mowgli_node_t *n, *tn;
     kline_t *k;
@@ -291,14 +291,17 @@ static void syn_m_unkline(sourceinfo_t *si, int parc, char **parv)
 
 static void syn_m_ban(sourceinfo_t *si, int parc, char **parv)
 {
-    if (parv[1][0] != 'K')
+    if (parv[0][0] != 'K')
     {
         // Not a K:line; ignore
         return;
     }
-    
-    char *user = parv[2], *host = parv[3], *setter = parv[7], *reason = parv[8];
-    int creation = atoi(parv[4]), duration = atoi(parv[5]); // lifetime = atoi(parv[6]);
+
+    const char *user = parv[1], *host = parv[2], *setter = parv[6], *reason = parv[7];
+    int creation = atoi(parv[3]), duration = atoi(parv[4]); // lifetime = atoi(parv[5]);
+
+    if (setter[0] == '*' && si->su)
+        setter = si->su->nick;
 
     if (creation + duration > CURRTIME)
     {
