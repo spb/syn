@@ -11,6 +11,20 @@ DECLARE_MODULE_V1
 );
 
 static void check_user(hook_user_nick_t *data, bool isnewuser);
+static bool maybe_kline_user_host(user_t *u, const char *hostname);
+
+typedef struct
+{
+    user_t *u;
+    sockaddr_any_t sa;
+    dns_query_t dns_query;
+} reverse_lookup_client;
+
+mowgli_heap_t *rlc_heap;
+
+static void start_reverse_lookup(user_t *u, const char *ip);
+static void reverse_lookup_callback(void *vptr, dns_reply_t *reply);
+static void free_rlc_info(user_t *u);
 
 static void check_all_users(void *v)
 {
@@ -41,6 +55,10 @@ void _modinit(module_t *m)
     hook_add_hook("syn_kline_added", check_all_users);
     hook_add_event("syn_kline_check");
 
+    hook_add_event("user_delete");
+    hook_add_user_delete(free_rlc_info);
+    rlc_heap = mowgli_heap_create(sizeof(rlc_heap), 512, BH_NOW);
+
     check_all_users(NULL);
 }
 
@@ -48,12 +66,29 @@ void _moddeinit(module_unload_intent_t intent)
 {
     hook_del_user_add(gateway_newuser);
     hook_del_hook("syn_kline_added", check_all_users);
+
+    mowgli_heap_destroy(rlc_heap);
+    hook_del_user_delete(free_rlc_info);
+}
+
+static bool maybe_kline_user_host(user_t *u, const char *hostname)
+{
+    kline_t *k = syn_find_kline(NULL, hostname);
+
+    if (k)
+    {
+        syn_report("Killing user %s; reported host [%s] matches K:line [%s@%s] (%s)",
+                u->nick, hostname, k->user, k->host, k->reason);
+        syn_kill(u, "Your reported hostname [%s] is banned: %s", hostname, k->reason);
+        return true;
+    }
+
+    return false;
 }
 
 static void check_user(hook_user_nick_t *data, bool isnewuser)
 {
     user_t *u = data->u;
-    kline_t *k = NULL;
 
     /* If the user has already been killed, don't try to do anything */
     if (!u)
@@ -71,12 +106,8 @@ static void check_user(hook_user_nick_t *data, bool isnewuser)
 
     if (identhost)
     {
-        k = syn_find_kline(NULL, identhost);
-
-        if (k)
+        if (maybe_kline_user_host(u, identhost))
         {
-            syn_report("Killing user %s; hex ident matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
-            syn_kill(u, "Your reported IP [%s] is banned: %s", identhost, k->reason);
             data->u = NULL;
             return;
         }
@@ -123,22 +154,16 @@ static void check_user(hook_user_nick_t *data, bool isnewuser)
     if (p != NULL)
         *p++ = '\0';
 
-    if ((k = syn_find_kline(NULL, gecos)))
+    if (maybe_kline_user_host(u, gecos))
     {
-        syn_report("Killing user %s; realname host matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
-        syn_kill(u, "Your reported hostname [%s] is banned: %s", gecos, k->reason);
         data->u = NULL;
         return;
     }
-    else if (p && (k = syn_find_kline(NULL, p)))
+    else if (p && maybe_kline_user_host(u, p))
     {
-        syn_report("Killing user %s; realname host matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
-        syn_kill(u, "Your reported hostname [%s] is banned: %s", p, k->reason);
         data->u = NULL;
         return;
     }
-
-    char looked_up_hostname[HOSTLEN];
 
     if (!p)
     {
@@ -146,27 +171,7 @@ static void check_user(hook_user_nick_t *data, bool isnewuser)
 
         // There was no hostname, only an IP. This can happen when the hostname is too long to fit in a gecos field.
         // Do a reverse lookup and see whether the hostname is also klined.
-        // Because we're decoding this from an eight-char hex ip, it can only be ipv4.
-        struct sockaddr_in sa;
-        sa.sin_family = AF_INET;
-       sa.sin_port = 6667;
-        inet_aton(identhost, &sa.sin_addr);
-
-        if (0 == getnameinfo((struct sockaddr *)&sa, sizeof sa, looked_up_hostname, sizeof looked_up_hostname, NULL, 0, NI_NAMEREQD))
-        {
-            syn_debug(3, "got reverse lookup: %s", looked_up_hostname);
-            if ((k = syn_find_kline(NULL, looked_up_hostname)))
-            {
-                syn_report("Killing user %s; realname host matches K:line [%s@%s] (%s)", u->nick, k->user, k->host, k->reason);
-                syn_kill(u, "Your reported hostname [%s] is banned: %s", p, k->reason);
-                data->u = NULL;
-                return;
-            }
-
-            p = looked_up_hostname;
-        }
-        else
-            syn_debug(3, "no reverse lookup");
+        start_reverse_lookup(u, identhost);
     }
 
     // As above, but for gecos hostnames
@@ -175,3 +180,60 @@ static void check_user(hook_user_nick_t *data, bool isnewuser)
     d.ip = p;
     hook_call_event("syn_kline_check", &d);
 }
+
+// Reverse DNS lookup stuff below here
+
+static void start_reverse_lookup(user_t *u, const char *ip)
+{
+    reverse_lookup_client *rlc = mowgli_heap_alloc(rlc_heap);
+
+    rlc->u = u;
+    rlc->dns_query.ptr = rlc;
+    rlc->dns_query.callback = reverse_lookup_callback;
+
+    if (0 == inet_aton(ip, &rlc->sa.sin.sin_addr))
+    {
+        syn_debug(3, "failed to convert ip address [%s] for user [%s]", ip, u->nick);
+        mowgli_heap_free(rlc_heap, rlc);
+        return;
+    }
+
+    rlc->sa.sa.sa_family = AF_INET;
+
+    syn_debug(3, "starting reverse lookup on [%s] for user [%s]", ip, u->nick);
+
+    gethost_byaddr(&rlc->sa, &rlc->dns_query);
+
+    free_rlc_info(u);
+    privatedata_set(u, "syn:gateway:rlcinfo", rlc);
+}
+
+static void free_rlc_info(user_t *u)
+{
+    reverse_lookup_client *rlc = privatedata_get(u, "syn:gateway:rlcinfo");
+    if (!rlc)
+        return;
+
+    mowgli_heap_free(rlc_heap, rlc);
+    privatedata_set(u, "syn:gateway:rlcinfo", 0);
+}
+
+static void reverse_lookup_callback(void *vptr, dns_reply_t *reply)
+{
+    reverse_lookup_client *rlc = vptr;
+    user_t *u = rlc->u;
+
+    // Either way, we're done with this info.
+    free_rlc_info(u);
+
+    if (!reply)
+    {
+        syn_debug(3, "got lookup callback with no reply for user [%s]", u->nick);
+        return;
+    }
+
+    syn_debug(3, "got reverse lookup info [%s] for user [%s]", reply->h_name, u->nick);
+
+    maybe_kline_user_host(u, reply->h_name);
+}
+
