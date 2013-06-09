@@ -22,7 +22,7 @@ install: $(MODULES)
 	install -d $(PREFIX)/modules/syn
 	for m in $(MODULES); do \
 	    install $${m} $(PREFIX)/modules/syn/$${m}.tmp; \
-	    mv $(PREFIX)/modules/syn/$${m}{.tmp,}; \
+	    mv $(PREFIX)/modules/syn/$${m}.tmp $(PREFIX)/modules/syn/$${m} || exit $$?;  \
 	done
 	install -d $(PREFIX)/help/syn
 	install -t $(PREFIX)/help/syn help/*
