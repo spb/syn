@@ -80,6 +80,25 @@ static void syn_m_encap(sourceinfo_t *si, int parc, char **parv)
 	}
 }
 
+static void syn_m_chghost(sourceinfo_t *si, int parc, char *parv[])
+{
+	hook_incoming_host_change_t hdata;
+	const char *oldvhost;
+	user_t *u = user_find(parv[0]);
+
+	if (!u)
+		return;
+
+	oldvhost = strshare_get(u->vhost);
+	strshare_unref(u->vhost);
+	u->vhost = strshare_get(parv[1]);
+
+	hdata.si = si;
+	hdata.user = u;
+	hdata.oldvhost = oldvhost;
+	hook_call_event("incoming_host_change", &hdata);
+}
+
 static unsigned int sevensyn_server_login(void)
 {
 	int ret = 1;
@@ -121,6 +140,8 @@ void _modinit(module_t * m)
 	old_m_encap = old_encap->handler;
 	pcommand_delete("ENCAP");
 	pcommand_add("ENCAP", syn_m_encap, 2, MSRC_USER | MSRC_SERVER);
+	pcommand_delete("CHGHOST");
+	pcommand_add("CHGHOST", syn_m_chghost, 2, MSRC_USER | MSRC_SERVER);
 
 	ircd = &SevenSyn;
 
