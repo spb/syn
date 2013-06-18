@@ -166,6 +166,7 @@ static void check_user(hook_user_nick_t *data, bool isnewuser)
         return;
     }
 
+#if 0
     if (!p)
     {
         syn_debug(3, "no hostname found for %s!%s@%s[%s]; doing reverse lookup", u->nick, u->user, u->host, u->gecos);
@@ -174,6 +175,7 @@ static void check_user(hook_user_nick_t *data, bool isnewuser)
         // Do a reverse lookup and see whether the hostname is also klined.
         start_reverse_lookup(u, identhost);
     }
+#endif
 
     // As above, but for gecos hostnames
     syn_kline_check_data_t d = { gecos, u };
