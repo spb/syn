@@ -13,8 +13,12 @@ default: $(MODULES)
 clean:
 	rm -f $(MODULES)
 
+ifneq ($(WERROR),)
+CFLAGS_WERROR = -Werror
+endif
+
 %.so: %.c syn.h
-	gcc -std=c99 -Wall -Werror -O1 -ggdb3 -fPIC $(ATHEME_CFLAGS) -shared -o$@ $<
+	gcc -std=c99 -Wall $(CFLAGS_WERROR) -O1 -ggdb3 -fPIC $(ATHEME_CFLAGS) -shared -o$@ $<
 
 .PHONY: install
 
