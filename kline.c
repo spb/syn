@@ -260,7 +260,7 @@ void _syn_kill_or_kline(user_t *victim, int duration, const char *reason, ...)
 {
     va_list ap;
     va_start(ap, reason);
-    if (victim->ip[0] == '\0')
+    if (!victim->ip || victim->ip[0] == '\0')
     {
         // No IP means an auth spoofed user, probably a gateway. Kill it instead.
         // Don't give away the oper reason, though.
