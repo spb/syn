@@ -418,7 +418,7 @@ void facility_newuser(hook_user_nick_t *data)
 
     // Special case for tor-sasl. In this case, u->host has already been processed by the ircd,
     // so we only care about the unaffiliated cloak overriding it.
-    if (0 == strncmp(u->host, "gateway/tor-sasl", 16))
+    if (0 == strncmp(u->host, "gateway/tor-sasl", 16) || 0 == strncmp(u->host, "gateway/vpn/privateinternetaccess", 33))
     {
         if (0 == strncmp(u->vhost, "unaffiliated", 12))
         {
