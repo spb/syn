@@ -464,6 +464,7 @@ void facility_newuser(hook_user_nick_t *data)
                             u->nick, blocking_facility->hostpart);
                     // If we couldn't decode an IP, block the connection
                     syn_kill2(u, "No IP address supplied", "Your gateway requires an underlying IP address to be supplied, which could not be found.");
+		    data->u = NULL;
                 }
                 break;
 
