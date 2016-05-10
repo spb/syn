@@ -457,11 +457,16 @@ void facility_newuser(hook_user_nick_t *data)
                     ipstart += 3;
                     strncpy(ipstart, ip, new_vhost + HOSTLEN - ipstart);
                     user_sethost(syn->me, u, new_vhost);
-                    break;
                 }
-                // If we couldn't decode an IP, fall through...
-                syn_debug(2, "Hex IP cloaking used for %s, but I couldn't decode ident %s", u->nick, ident);
-                syn_debug(2, "Falling back to random cloaking...");
+                else
+                {
+                    syn_report("Killing user %s; facility %s requires hexip but none was found",
+                            u->nick, blocking_facility->hostpart);
+                    // If we couldn't decode an IP, block the connection
+                    syn_kill2(u, "No IP address supplied", "Your gateway requires an underlying IP address to be supplied, which could not be found.");
+                }
+                break;
+
             }
         case facility_cloak_random:
             {
